@@ -1,20 +1,26 @@
 import { Panel, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { StatusIndicator } from '@/components/ui/status-indicator'
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { getModelProfiles } from '@/app/actions/model-profiles'
+import { ModelProfile } from '@/lib/db/schema'
 
 // Server-side data loader with real runtime integration
 async function getModels() {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'
     
-    // Fetch both installed and running models
-    const [modelsResponse, runningModelsResponse] = await Promise.all([
+    // Fetch both installed and running models, plus model profiles
+    const [modelsResponse, runningModelsResponse, profilesResponse] = await Promise.all([
       fetch(`${baseUrl}/api/runtime/models`, { cache: 'no-store' }),
-      fetch(`${baseUrl}/api/runtime/models?running=true`, { cache: 'no-store' })
+      fetch(`${baseUrl}/api/runtime/models?running=true`, { cache: 'no-store' }),
+      getModelProfiles()
     ])
 
     let models: any[] = []
     let runningModels: any[] = []
     let runtimeStatus = 'connected'
+    let profiles: ModelProfile[] = []
 
     if (modelsResponse.ok) {
       const modelsResult = await modelsResponse.json()
@@ -28,9 +34,15 @@ async function getModels() {
       runningModels = runningModelsResult.data || []
     }
 
-    // Merge model information with running status
+    if (profilesResponse.success) {
+      profiles = profilesResponse.data.profiles || []
+    }
+
+    // Merge model information with running status and profile data
     const mergedModels = models.map(model => {
       const runningInfo = runningModels.find(rm => rm.name === model.name)
+      const profile = profiles.find(p => p.runtimeModelName === model.name)
+      
       return {
         id: model.name,
         name: model.name.replace(/:.+$/, ''), // Remove tag for display
@@ -43,7 +55,14 @@ async function getModels() {
         family: model.details?.family,
         parameterSize: model.details?.parameter_size,
         quantization: model.details?.quantization_level,
-        digest: model.digest
+        digest: model.digest,
+        profile, // Include profile data
+        reliability: profile ? {
+          structuredOutput: profile.structuredOutputReliability,
+          toolCalling: profile.toolCallingReliability,
+          performance: profile.performanceScore,
+          role: profile.role,
+        } : null
       }
     })
 
@@ -51,7 +70,8 @@ async function getModels() {
       models: mergedModels,
       runtimeStatus,
       modelCount: models.length,
-      runningCount: runningModels.length
+      runningCount: runningModels.length,
+      profiles: profiles.length
     }
   } catch (error) {
     console.error('Failed to fetch models:', error)
@@ -70,12 +90,15 @@ async function getModels() {
           modified: new Date(Date.now() - 3600000).toISOString(),
           family: 'llama',
           parameterSize: '8B',
-          quantization: 'q4_0'
+          quantization: 'q4_0',
+          profile: null,
+          reliability: null
         },
       ],
       runtimeStatus: 'error' as const,
       modelCount: 0,
-      runningCount: 0
+      runningCount: 0,
+      profiles: 0
     }
   }
 }
@@ -97,6 +120,23 @@ function createModelDescription(model: any): string {
   const quantization = model.details?.quantization_level || 'Unknown'
   
   return `${family} model with ${parameterSize} parameters (${quantization})`
+}
+
+function getReliabilityColor(score: number): string {
+  if (score >= 0.8) return 'text-green-600'
+  if (score >= 0.6) return 'text-yellow-600'
+  return 'text-red-600'
+}
+
+function getRoleBadgeVariant(role: string): "default" | "secondary" | "destructive" | "outline" {
+  switch (role) {
+    case 'general': return 'default'
+    case 'code': return 'secondary'
+    case 'reasoning': return 'outline'
+    case 'vision': return 'default'
+    case 'embedding': return 'secondary'
+    default: return 'outline'
+  }
 }
 
 export default async function ModelsPage() {
@@ -124,6 +164,11 @@ export default async function ModelsPage() {
           <span className="text-sm text-muted-foreground">
             {data.modelCount} models ({data.runningCount} running)
           </span>
+          {data.profiles > 0 && (
+            <Badge variant="secondary" className="text-xs">
+              {data.profiles} profiles
+            </Badge>
+          )}
         </div>
       </PanelHeader>
       
@@ -140,13 +185,57 @@ export default async function ModelsPage() {
                   <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
                     {model.size}
                   </span>
+                  {model.reliability && (
+                    <Badge variant={getRoleBadgeVariant(model.reliability.role)} className="text-xs">
+                      {model.reliability.role}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-1">
                   {model.description}
                 </p>
+                
+                {/* Reliability Stats */}
+                {model.reliability && (
+                  <div className="mt-3 space-y-2">
+                    <div className="grid grid-cols-3 gap-3 text-xs">
+                      <div className="flex flex-col">
+                        <span className="text-muted-foreground">Performance</span>
+                        <div className="flex items-center gap-1">
+                          <Progress value={model.reliability.performance * 100} className="h-1 flex-1" />
+                          <span className={getReliabilityColor(model.reliability.performance)}>
+                            {(model.reliability.performance * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-muted-foreground">Structured Output</span>
+                        <div className="flex items-center gap-1">
+                          <Progress value={model.reliability.structuredOutput * 100} className="h-1 flex-1" />
+                          <span className={getReliabilityColor(model.reliability.structuredOutput)}>
+                            {(model.reliability.structuredOutput * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-muted-foreground">Tool Calling</span>
+                        <div className="flex items-center gap-1">
+                          <Progress value={model.reliability.toolCalling * 100} className="h-1 flex-1" />
+                          <span className={getReliabilityColor(model.reliability.toolCalling)}>
+                            {(model.reliability.toolCalling * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                   <span>Context: {model.contextLength.toLocaleString()}</span>
                   <span>Modified: {new Date(model.modified).toLocaleTimeString()}</span>
+                  {model.profile && (
+                    <span className="text-green-600">✓ Profile Configured</span>
+                  )}
                 </div>
               </div>
               
@@ -169,6 +258,11 @@ export default async function ModelsPage() {
                   <button className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded hover:bg-secondary/90">
                     Configure
                   </button>
+                  {!model.profile && (
+                    <button className="text-xs bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700">
+                      Create Profile
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

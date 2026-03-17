@@ -8,30 +8,8 @@
 import { RuntimeModel, RuntimeModelState } from '../runtime/types'
 import { RuntimeError, RuntimeErrorCode } from '../runtime/errors'
 import { getRuntimeService } from './runtime-service'
-
-export interface ModelProfile {
-  id: string
-  runtimeModelName: string
-  displayName: string
-  description?: string | undefined
-  tags: string[]
-  role: ModelRole
-  capabilities: ModelCapabilities
-  metadata: ModelMetadata
-  pulledAt: string
-  lastUsedAt?: string | undefined
-  usageCount: number
-  enabled: boolean
-}
-
-export type ModelRole = 
-  | 'general'
-  | 'code'
-  | 'reasoning'
-  | 'vision'
-  | 'embedding'
-  | 'router'
-  | 'judge'
+import { modelProfileRepository, ModelRole } from '../persistence/model-profile-repository'
+import { ModelProfile as DBModelProfile } from '../db/schema'
 
 export interface ModelCapabilities {
   supportsChat: boolean
@@ -44,20 +22,9 @@ export interface ModelCapabilities {
   recommendedMaxTokens?: number
 }
 
-export interface ModelMetadata {
-  family?: string | undefined
-  parameterSize?: string | undefined
-  quantizationLevel?: string | undefined
-  format?: string | undefined
-  size: number
-  contextLength: number
-  modifiedAt: string
-  digest: string
-}
-
 export interface SyncResult {
-  added: ModelProfile[]
-  updated: ModelProfile[]
+  added: DBModelProfile[]
+  updated: DBModelProfile[]
   removed: string[]
   errors: string[]
 }
@@ -129,96 +96,133 @@ export class ModelSyncService {
   /**
    * Get all local model profiles
    */
-  async getLocalProfiles(): Promise<ModelProfile[]> {
-    // In a real implementation, this would query the database
-    // For now, return empty array
-    return []
+  async getLocalProfiles(): Promise<DBModelProfile[]> {
+    try {
+      return await modelProfileRepository.findActive()
+    } catch (error) {
+      console.error('Failed to get local profiles:', error)
+      return []
+    }
   }
 
   /**
    * Get a specific model profile by runtime name
    */
-  async getProfileByRuntimeName(runtimeName: string): Promise<ModelProfile | null> {
-    const profiles = await this.getLocalProfiles()
-    return profiles.find(p => p.runtimeModelName === runtimeName) || null
+  async getProfileByRuntimeName(runtimeName: string): Promise<DBModelProfile | null> {
+    try {
+      return await modelProfileRepository.findByRuntimeModelName(runtimeName)
+    } catch (error) {
+      console.error('Failed to get profile by runtime name:', error)
+      return null
+    }
   }
 
   /**
    * Save a model profile
    */
-  async saveProfile(profile: ModelProfile): Promise<void> {
-    // In a real implementation, this would save to the database
-    console.log('Saving profile:', profile.id)
+  async saveProfile(profile: DBModelProfile): Promise<void> {
+    try {
+      await modelProfileRepository.update(profile.id, {
+        displayName: profile.displayName || undefined,
+        role: profile.role,
+        maxSafeContext: profile.maxSafeContext,
+        structuredOutputReliability: profile.structuredOutputReliability,
+        toolCallingReliability: profile.toolCallingReliability,
+        performanceScore: profile.performanceScore,
+        costPerToken: profile.costPerToken,
+        isActive: profile.isActive,
+        metadata: profile.metadata ? JSON.parse(profile.metadata) : undefined,
+      })
+    } catch (error) {
+      console.error('Failed to save profile:', error)
+      throw error
+    }
   }
 
   /**
    * Remove a model profile
    */
   async removeProfile(id: string): Promise<void> {
-    // In a real implementation, this would delete from the database
-    console.log('Removing profile:', id)
+    try {
+      await modelProfileRepository.delete(id)
+    } catch (error) {
+      console.error('Failed to remove profile:', error)
+      throw error
+    }
   }
 
   /**
    * Create a profile from runtime model information
    */
-  private async createProfileFromRuntime(runtimeModel: RuntimeModel): Promise<ModelProfile> {
+  private async createProfileFromRuntime(runtimeModel: RuntimeModel): Promise<DBModelProfile> {
+    const role = this.inferRole(runtimeModel)
     const capabilities = this.inferCapabilities(runtimeModel)
-    const role = this.inferRole(runtimeModel, capabilities)
-    const metadata = this.extractMetadata(runtimeModel)
 
-    return {
-      id: `model-${Date.now()}-${runtimeModel.name.replace(/[^a-zA-Z0-9]/g, '-')}`,
+    // Create the profile using the repository
+    return await modelProfileRepository.create({
       runtimeModelName: runtimeModel.name,
+      role,
+      maxSafeContext: capabilities.maxContextLength,
+      structuredOutputReliability: capabilities.supportsJsonFormat ? 0.8 : 0.3,
+      toolCallingReliability: capabilities.supportsToolCalling ? 0.7 : 0.1,
       displayName: this.createDisplayName(runtimeModel),
       description: this.createDescription(runtimeModel),
-      tags: this.createTags(runtimeModel, role, capabilities),
-      role,
-      capabilities,
-      metadata,
-      pulledAt: new Date().toISOString(),
-      usageCount: 0,
-      enabled: true
-    }
+      performanceScore: 0.5, // Default score
+      metadata: {
+        family: runtimeModel.details?.family,
+        parameterSize: runtimeModel.details?.parameter_size,
+        quantizationLevel: runtimeModel.details?.quantization_level,
+        format: runtimeModel.details?.format,
+        size: runtimeModel.size,
+        contextLength: runtimeModel.details?.num_ctx || 2048,
+        modifiedAt: runtimeModel.modified_at,
+        digest: runtimeModel.digest,
+        capabilities,
+      },
+    })
   }
 
   /**
    * Update an existing profile with runtime model information
    */
   private async updateProfileFromRuntime(
-    profile: ModelProfile,
+    profile: DBModelProfile,
     runtimeModel: RuntimeModel
-  ): Promise<ModelProfile> {
+  ): Promise<DBModelProfile> {
+    const role = this.inferRole(runtimeModel)
     const capabilities = this.inferCapabilities(runtimeModel)
-    const role = this.inferRole(runtimeModel, capabilities)
-    const metadata = this.extractMetadata(runtimeModel)
 
-    return {
-      ...profile,
+    return await modelProfileRepository.update(profile.id, {
       displayName: this.createDisplayName(runtimeModel),
       description: this.createDescription(runtimeModel),
-      tags: this.createTags(runtimeModel, role, capabilities),
       role,
-      capabilities,
-      metadata,
-      // Preserve usage-related fields
-      pulledAt: profile.pulledAt,
-      lastUsedAt: profile.lastUsedAt,
-      usageCount: profile.usageCount,
-      enabled: profile.enabled
-    }
+      maxSafeContext: capabilities.maxContextLength,
+      structuredOutputReliability: capabilities.supportsJsonFormat ? 0.8 : 0.3,
+      toolCallingReliability: capabilities.supportsToolCalling ? 0.7 : 0.1,
+      metadata: {
+        family: runtimeModel.details?.family,
+        parameterSize: runtimeModel.details?.parameter_size,
+        quantizationLevel: runtimeModel.details?.quantization_level,
+        format: runtimeModel.details?.format,
+        size: runtimeModel.size,
+        contextLength: runtimeModel.details?.num_ctx || 2048,
+        modifiedAt: runtimeModel.modified_at,
+        digest: runtimeModel.digest,
+        capabilities,
+      },
+    })
   }
 
   /**
    * Check if a model has changed since last sync
    */
-  private hasModelChanged(runtimeModel: RuntimeModel, profile: ModelProfile): boolean {
-    const metadata = this.extractMetadata(runtimeModel)
+  private hasModelChanged(runtimeModel: RuntimeModel, profile: DBModelProfile): boolean {
+    const profileMetadata = profile.metadata ? JSON.parse(profile.metadata) : {}
     
     return (
-      metadata.digest !== profile.metadata.digest ||
-      metadata.modifiedAt !== profile.metadata.modifiedAt ||
-      metadata.size !== profile.metadata.size
+      runtimeModel.digest !== profileMetadata.digest ||
+      runtimeModel.modified_at !== profileMetadata.modifiedAt ||
+      runtimeModel.size !== profileMetadata.size
     )
   }
 
@@ -270,12 +274,12 @@ export class ModelSyncService {
   /**
    * Infer model role based on characteristics
    */
-  private inferRole(runtimeModel: RuntimeModel, capabilities: ModelCapabilities): ModelRole {
+  private inferRole(runtimeModel: RuntimeModel): ModelRole {
     const family = runtimeModel.details?.family?.toLowerCase() || ''
     const name = runtimeModel.name.toLowerCase()
     
     // Specialized models
-    if (capabilities.supportsEmbeddings) {
+    if (family.includes('embed') || name.includes('embed') || name.includes('sentence')) {
       return 'embedding'
     }
     
@@ -283,7 +287,7 @@ export class ModelSyncService {
       return 'code'
     }
     
-    if (family.includes('llava') || capabilities.supportsVision) {
+    if (family.includes('llava') || name.includes('vision')) {
       return 'vision'
     }
     
@@ -298,22 +302,6 @@ export class ModelSyncService {
     
     // Default to general purpose
     return 'general'
-  }
-
-  /**
-   * Extract metadata from runtime model
-   */
-  private extractMetadata(runtimeModel: RuntimeModel): ModelMetadata {
-    return {
-      family: runtimeModel.details?.family,
-      parameterSize: runtimeModel.details?.parameter_size,
-      quantizationLevel: runtimeModel.details?.quantization_level,
-      format: runtimeModel.details?.format,
-      size: runtimeModel.size,
-      contextLength: runtimeModel.details?.num_ctx || 2048,
-      modifiedAt: runtimeModel.modified_at,
-      digest: runtimeModel.digest
-    }
   }
 
   /**
@@ -350,39 +338,6 @@ export class ModelSyncService {
   }
 
   /**
-   * Create tags for the model
-   */
-  private createTags(
-    runtimeModel: RuntimeModel,
-    role: ModelRole,
-    capabilities: ModelCapabilities
-  ): string[] {
-    const tags: string[] = [role]
-    
-    const family = runtimeModel.details?.family?.toLowerCase() || ''
-    
-    // Family tags
-    if (family.includes('llama')) tags.push('llama')
-    if (family.includes('qwen')) tags.push('qwen')
-    if (family.includes('mixtral')) tags.push('mixtral')
-    if (family.includes('mistral')) tags.push('mistral')
-    
-    // Capability tags
-    if (capabilities.supportsVision) tags.push('vision')
-    if (capabilities.supportsEmbeddings) tags.push('embeddings')
-    if (capabilities.supportsToolCalling) tags.push('tools')
-    
-    // Size tags
-    const parameterSize = runtimeModel.details?.parameter_size?.toLowerCase() || ''
-    if (parameterSize.includes('70b') || parameterSize.includes('65b')) tags.push('large')
-    if (parameterSize.includes('34b') || parameterSize.includes('33b')) tags.push('medium-large')
-    if (parameterSize.includes('13b') || parameterSize.includes('12b')) tags.push('medium')
-    if (parameterSize.includes('8b') || parameterSize.includes('7b')) tags.push('small')
-    
-    return tags
-  }
-
-  /**
    * Check if this is a large model
    */
   private isLargeModel(runtimeModel: RuntimeModel): boolean {
@@ -408,43 +363,59 @@ export class ModelSyncService {
     const profile = await this.getProfileByRuntimeName(runtimeModelName)
     
     if (profile) {
-      profile.usageCount++
-      profile.lastUsedAt = new Date().toISOString()
-      await this.saveProfile(profile)
+      const currentMetadata = profile.metadata ? JSON.parse(profile.metadata) : {}
+      const updatedMetadata = {
+        ...currentMetadata,
+        lastUsedAt: new Date().toISOString(),
+        usageCount: (currentMetadata.usageCount || 0) + 1,
+      }
+      
+      await modelProfileRepository.update(profile.id, {
+        metadata: updatedMetadata,
+      })
     }
   }
 
   /**
    * Get models by role
    */
-  async getModelsByRole(role: ModelRole): Promise<ModelProfile[]> {
-    const profiles = await this.getLocalProfiles()
-    return profiles.filter(p => p.role === role && p.enabled)
+  async getModelsByRole(role: ModelRole): Promise<DBModelProfile[]> {
+    try {
+      return await modelProfileRepository.findByRole(role)
+    } catch (error) {
+      console.error('Failed to get models by role:', error)
+      return []
+    }
   }
 
   /**
    * Get models by capability
    */
-  async getModelsByCapability(capability: keyof ModelCapabilities): Promise<ModelProfile[]> {
-    const profiles = await this.getLocalProfiles()
-    return profiles.filter(p => p.enabled && p.capabilities[capability])
+  async getModelsByCapability(capability: keyof ModelCapabilities): Promise<DBModelProfile[]> {
+    try {
+      const profiles = await modelProfileRepository.findActive()
+      return profiles.filter(p => {
+        const metadata = p.metadata ? JSON.parse(p.metadata) : {}
+        const capabilities = metadata.capabilities as ModelCapabilities
+        return capabilities?.[capability] === true
+      })
+    } catch (error) {
+      console.error('Failed to get models by capability:', error)
+      return []
+    }
   }
 
   /**
    * Search models by query
    */
-  async searchModels(query: string): Promise<ModelProfile[]> {
-    const profiles = await this.getLocalProfiles()
-    const lowercaseQuery = query.toLowerCase()
-    
-    return profiles.filter(p => 
-      p.enabled && (
-        p.displayName.toLowerCase().includes(lowercaseQuery) ||
-        p.description?.toLowerCase().includes(lowercaseQuery) ||
-        p.tags.some(tag => tag.toLowerCase().includes(lowercaseQuery)) ||
-        p.runtimeModelName.toLowerCase().includes(lowercaseQuery)
-      )
-    )
+  async searchModels(query: string): Promise<DBModelProfile[]> {
+    try {
+      const result = await modelProfileRepository.findMany({ search: query })
+      return result.profiles
+    } catch (error) {
+      console.error('Failed to search models:', error)
+      return []
+    }
   }
 }
 

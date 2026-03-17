@@ -829,12 +829,15 @@ export function computeBudget(input: BudgetInput): BudgetPlan {
 
 ---
 
-## [ ] CC-006: Add Model Profiles, Routing Policies, and Structured Output Utilities
+## [x] CC-006: Add Model Profiles, Routing Policies, and Structured Output Utilities
 
 ### Definition of Done
 
-- [ ] Installed models are syncable into editable local model profiles with role, capability, and benchmark annotations.
-- [ ] A task-first routing layer selects a model profile based on requested capability, latency budget, output shape, and reliability preference.
+- [x] Installed models are syncable into editable local model profiles with role, capability, and benchmark annotations.
+- [x] A task-first routing layer selects a model profile based on requested capability, latency budget, output shape, and reliability preference.
+- [x] Structured output helpers support JSON-schema-constrained tasks for extraction, routing, and scoring.
+- [x] Thinking traces can be captured, persisted, and displayed separately from the final answer when supported.
+- [x] Fallback, retry, and circuit-breaker behavior is implemented for degraded models.
 - [ ] Structured output helpers support JSON-schema-constrained tasks for extraction, routing, and scoring.
 - [ ] Thinking traces can be captured, persisted, and displayed separately from the final answer when supported.
 - [ ] Fallback, retry, and circuit-breaker behavior is implemented for degraded models.
