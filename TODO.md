@@ -54,7 +54,25 @@ This backlog assumes the canonical local-server architecture from the master gui
 - ✅ CC-003-6: Add health-check and smoke-test scripts for local runtime verification
 - ✅ CC-003-7: Document supported model capabilities and failure modes
 
-**Next Priority:** Proceed to CC-005: Implement the Chat Interface, Message History, and Conversation Management
+**Next Priority:** Proceed to CC-006: Add Model Profiles, Routing Policies, and Structured Output Utilities
+
+---
+
+### ✅ CC-006: Add Model Profiles, Routing Policies, and Structured Output Utilities
+
+**Status: 100% COMPLETE** - 7 of 7 subtasks completed
+
+**Completed Subtasks:**
+
+- ✅ CC-006-1: Create model profile schema, repositories, and edit flows
+- ✅ CC-006-2: Implement routing policy services and profile scoring
+- ✅ CC-006-3: Add structured output utility helpers and parsing guards
+- ✅ CC-006-4: Capture, store, and render thinking traces when enabled
+- ✅ CC-006-5: Implement fallback chains, retry classification, and simple circuit breaker state
+- ✅ CC-006-6: Expose model benchmark notes and reliability stats in the models panel
+- ✅ CC-006-7: Write routing and structured-output regression tests
+
+**Next Priority:** Proceed to CC-007: Create the Document Ingestion Pipeline and Index Lifecycle
 
 ---
 
@@ -829,18 +847,36 @@ export function computeBudget(input: BudgetInput): BudgetPlan {
 
 ---
 
-## [x] CC-006: Add Model Profiles, Routing Policies, and Structured Output Utilities
+## ✅ CC-006: Add Model Profiles, Routing Policies, and Structured Output Utilities
+**Status: 100% COMPLETE** - 7 of 7 subtasks completed
 
-### Definition of Done
+**Completed Subtasks:**
+- ✅ CC-006-1: Create model profile schema, repositories, and edit flows
+- ✅ CC-006-2: Implement routing policy services and profile scoring
+- ✅ CC-006-3: Add structured output utility helpers and parsing guards
+- ✅ CC-006-4: Capture, store, and render thinking traces when enabled
+- ✅ CC-006-5: Implement fallback chains, retry classification, and simple circuit breaker state
+- ✅ CC-006-6: Expose model benchmark notes and reliability stats in the models panel
+- ✅ CC-006-7: Write routing and structured-output regression tests
 
-- [x] Installed models are syncable into editable local model profiles with role, capability, and benchmark annotations.
-- [x] A task-first routing layer selects a model profile based on requested capability, latency budget, output shape, and reliability preference.
-- [x] Structured output helpers support JSON-schema-constrained tasks for extraction, routing, and scoring.
-- [x] Thinking traces can be captured, persisted, and displayed separately from the final answer when supported.
-- [x] Fallback, retry, and circuit-breaker behavior is implemented for degraded models.
-- [ ] Structured output helpers support JSON-schema-constrained tasks for extraction, routing, and scoring.
-- [ ] Thinking traces can be captured, persisted, and displayed separately from the final answer when supported.
-- [ ] Fallback, retry, and circuit-breaker behavior is implemented for degraded models.
+**Key Implementation Details:**
+- **Complete Model Profile System**: Full CRUD operations with validation, reliability scoring, and performance tracking
+- **Intelligent Model Routing**: Task-based routing with capability matching, latency budgets, and reliability preferences
+- **Structured Output Service**: JSON schema validation with retry logic, auto-repair, and confidence scoring
+- **Thinking Trace Support**: Complete reasoning trace persistence with step-by-step analysis and UI visualization
+- **Fallback & Circuit Breaker**: Robust error handling with retry policies, circuit breaker patterns, and degradation strategies
+- **Rich UI Components**: Model profile editor with tabs, stats cards, benchmark results, and reliability metrics
+- **Integration Ready**: Fully integrated with models panel, server actions, and existing UI patterns
+
+**Technical Architecture:**
+- **Model Router**: `src/lib/app/orchestration/model-router.ts` - Intelligent task-based model selection
+- **Profile Repository**: `src/lib/app/persistence/model-profile-repository.ts` - Complete CRUD with validation
+- **Structured Output**: `src/lib/app/runtime/structured-output.ts` - Schema validation and parsing
+- **Thinking Traces**: `src/lib/app/persistence/reasoning-trace-repository.ts` - Reasoning step persistence
+- **Fallback Policy**: `src/lib/app/orchestration/fallback-policy.ts` - Error handling and retries
+- **UI Components**: `src/components/models/` - Profile editor, stats cards, and dialog wrappers
+
+**Next Priority:** Proceed to CC-007: Create the Document Ingestion Pipeline and Index Lifecycle
 
 ### Out of Scope
 
