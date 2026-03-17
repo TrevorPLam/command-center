@@ -9,4 +9,5 @@ export default defineConfig({
   },
   verbose: true,
   strict: true,
+  // Note: We'll handle migrations manually since we're using sql.js
 })

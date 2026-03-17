@@ -1,6 +1,6 @@
 # PROMPT.md
 
-1. Read AGENTS.md, GUIDE.md, TODO.md for context and the task list and highest priority open/active task.
+1. Read AGENTS.md and TODO.md for context and the task list and highest priority open/active task.
 
 <stop> Execute step one. </stop>
 

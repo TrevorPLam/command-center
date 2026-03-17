@@ -59,3 +59,6 @@ export function getEnv(): Env {
 
   return validatedEnv
 }
+
+// Export the validated environment for convenience
+export const env = validateEnv()

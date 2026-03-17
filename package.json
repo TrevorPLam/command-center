@@ -35,7 +35,6 @@
     "@radix-ui/react-slot": "^1.1.1",
     "@radix-ui/react-tabs": "^1.1.1",
     "@tanstack/react-query": "^5.62.3",
-    "better-sqlite3": "^9.6.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
@@ -46,6 +45,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sonner": "^1.7.0",
+    "sql.js": "^1.14.1",
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^3.4.17",
     "zod": "^3.24.1",
@@ -79,6 +79,9 @@
     "overrides": {
       "react": "^19.0.0",
       "react-dom": "^19.0.0"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
   }
 }

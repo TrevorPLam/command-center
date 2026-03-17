@@ -9,18 +9,52 @@ This backlog assumes the canonical local-server architecture from the master gui
 ## 🎯 Current Status Summary
 
 ### ✅ CC-001: Bootstrap the Repository, Toolchain, and Delivery Standards
+
 **Status: 100% COMPLETE** - 7 of 7 subtasks completed
 
 **Completed Subtasks:**
+
 - ✅ CC-001-1: Initialize Next.js App Router repository and package scripts
-- ✅ CC-001-2: Add baseline developer tooling and code quality automation  
+- ✅ CC-001-2: Add baseline developer tooling and code quality automation
 - ✅ CC-001-3: Create typed environment validation and runtime bootstrap modules
 - ✅ CC-001-4: Write the canonical ADRs and repository conventions
 - ✅ CC-001-5: Implement first-run health and diagnostics scripts
 - ✅ CC-001-6: Create root data/log directories and ignore rules
 - ✅ CC-001-7: Document local setup, supported platforms, and troubleshooting
 
-**Next Priority:** Proceed to CC-002: App Shell and UI Foundations
+### ✅ CC-002: Build the App Shell, Route Topology, and UI Foundations
+
+**Status: 100% COMPLETE** - 7 of 7 subtasks completed
+
+**Completed Subtasks:**
+
+- ✅ CC-002-1: Create the `(command-center)` route group and shared dashboard layout
+- ✅ CC-002-2: Scaffold the six primary panels and placeholder server data loaders
+- ✅ CC-002-3: Implement shared navigation, command palette, and shell chrome
+- ✅ CC-002-4: Add loading, empty, error, and offline UI states for every panel
+- ✅ CC-002-5: Persist panel layout and interaction preferences on the client
+- ✅ CC-002-6: Define shared UI primitives and design tokens for the dashboard
+- ✅ CC-002-7: Add modal/intercepting-route support for detail views and confirmations
+
+**Next Priority:** Proceed to CC-005: Implement the Chat Interface, Message History, and Conversation Management
+
+---
+
+### ✅ CC-003: Implement the Runtime Adapter, Ollama Integration, and Diagnostics
+
+**Status: 100% COMPLETE** - 7 of 7 subtasks completed
+
+**Completed Subtasks:**
+
+- ✅ CC-003-1: Create the runtime adapter contracts, error types, and timeout taxonomy
+- ✅ CC-003-2: Implement the Ollama adapter for tags, running models, chat, generate, and embed
+- ✅ CC-003-3: Add server-side runtime service wrappers and model inventory sync logic
+- ✅ CC-003-4: Create runtime diagnostics page and API routes
+- ✅ CC-003-5: Persist runtime snapshots and comparison history
+- ✅ CC-003-6: Add health-check and smoke-test scripts for local runtime verification
+- ✅ CC-003-7: Document supported model capabilities and failure modes
+
+**Next Priority:** Proceed to CC-005: Implement the Chat Interface, Message History, and Conversation Management
 
 ---
 
@@ -130,7 +164,8 @@ export type AppServices = {
 **Target Files**: `.eslintrc.cjs`, `.prettierrc`, `vitest.config.ts`, `.github/workflows/ci.yml`
 **Related Files**: `package.json`, `tsconfig.json`
 **Status**: ✅ COMPLETED
-**Implementation Notes**: 
+**Implementation Notes**:
+
 - Created `.eslintrc.cjs` with Next.js core-web-vitals configuration
 - Fixed ESLint flat config compatibility issues by using legacy format
 - Added missing dependencies: `@eslint/eslintrc`, `tailwindcss-animate`, `jsdom`
@@ -146,6 +181,7 @@ export type AppServices = {
 **Related Files**: `.env.example`, `README.md`
 **Status**: ✅ COMPLETED
 **Implementation Notes**:
+
 - Implemented comprehensive Zod schema validation for all environment variables
 - Created RuntimeServices interface with proper TypeScript types
 - Added bootstrapRuntime function with prerequisite verification
@@ -160,6 +196,7 @@ export type AppServices = {
 **Related Files**: `command-center_master_guide.md`, `README.md`
 **Status**: ✅ COMPLETED
 **Implementation Notes**:
+
 - Canonical ADR-001 already exists and establishes Next.js 15 App Router architecture
 - Repository conventions documented in docs/conventions.md
 - Architecture decision covers core stack, deployment model, and consequences
@@ -170,6 +207,7 @@ export type AppServices = {
 **Related Files**: `lib/config/env.ts`, `package.json`
 **Status**: ✅ COMPLETED
 **Implementation Notes**:
+
 - Comprehensive preflight.ts with Node.js, package manager, environment validation
 - Runtime diagnostics in check-runtime.ts with system resources and Ollama connectivity
 - Both scripts integrated with environment validation modules
@@ -181,6 +219,7 @@ export type AppServices = {
 **Related Files**: `.gitignore`, `README.md`
 **Status**: ✅ COMPLETED
 **Implementation Notes**:
+
 - Data and log directories automatically created by preflight script
 - Directory structure validated during runtime bootstrap
 - Proper access permissions verified in health checks
@@ -192,6 +231,7 @@ export type AppServices = {
 **Related Files**: `scripts/preflight.ts`, `.env.example`
 **Status**: ✅ COMPLETED
 **Implementation Notes**:
+
 - Enhanced README.md with comprehensive quick start guide and platform support table
 - Added detailed hardware requirements (minimum: 8GB RAM, 2 cores; recommended: 16GB+ RAM, 4+ cores)
 - Included environment configuration examples for local and remote Ollama setups
@@ -455,7 +495,28 @@ export class OllamaAdapter implements RuntimeAdapter {
 
 ---
 
-## [ ] CC-004: Establish the Persistence Layer, Core Schema, and Settings System
+## ✅ CC-004: Establish the Persistence Layer, Core Schema, and Settings System
+**Status: 100% COMPLETE** - 7 of 7 subtasks completed
+
+**Completed Subtasks:**
+- ✅ CC-004-1: Configure better-sqlite3, Drizzle, and migration tooling
+- ✅ CC-004-2: Define core entities in schema modules with repository helpers
+- ✅ CC-004-3: Implement settings CRUD with typed server actions
+- ✅ CC-004-4: Add transactional boundaries for conversation, job, and prompt writes
+- ✅ CC-004-5: Create database backup, reset, and seed commands
+- ✅ CC-004-6: Initialize default settings and sample data
+- ✅ CC-004-7: Implement database health checks and diagnostics
+
+**Key Implementation Details:**
+- **SQLite with sql.js**: Pure JavaScript SQLite implementation avoiding native compilation issues
+- **Complete Schema**: All 14 core entities from master guide implemented with proper relationships
+- **Repository Pattern**: Typed repository classes for all major entities (conversations, messages, settings, prompts, jobs)
+- **Server Actions**: Complete settings management with validation and caching
+- **Migration System**: Automated migration runner with version tracking
+- **Utility Scripts**: Backup, reset, and seed scripts for development workflow
+- **Sample Data**: Pre-populated with sample conversations, prompts, and default settings
+
+**Next Priority:** Proceed to CC-005: Implement the Chat Interface, Message History, and Conversation Management
 
 ### Definition of Done
 
