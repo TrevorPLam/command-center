@@ -1,0 +1,202 @@
+---
+description: Run Event-Driven Architecture and CQRS Standards Check
+globs: ["**/events/**/*.ts", "**/commands/**/*.ts", "**/queries/**/*.ts", "**/event-sourcing/**/*.ts"]
+---
+# Architecture: Event-Driven Architecture & CQRS Standards
+
+<audit_rules>
+- You MUST implement proper event sourcing with immutable event logs for aggregate changes.
+- You MUST ensure proper command and query responsibilities separation using CQRS pattern.
+- You MUST implement immutable events containing all necessary data for replay.
+- You MUST configure proper event versioning and schema evolution strategies.
+- You MUST implement message brokers with proper durability and ordering guarantees.
+- You MUST ensure idempotent event handlers to prevent duplicate processing.
+- You MUST implement proper eventual consistency between command and query models.
+- You MUST configure proper event replay and snapshot strategies for performance optimization.
+- You MUST implement proper dead letter queues for failed message processing.
+- You MUST ensure proper correlation IDs and causation tracking for event chains.
+</audit_rules>
+
+<example_good>
+```typescript
+// Event Sourcing Implementation
+import { z } from 'zod';
+import { EventStore } from '@/lib/event-store';
+import { EventBus } from '@/lib/event-bus';
+
+// Domain Events
+const UserEventSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  aggregateId: z.string(),
+  data: z.unknown(),
+  timestamp: z.date(),
+  version: z.number(),
+});
+
+export type UserEvent = z.infer<typeof UserEventSchema>;
+
+// Command Handler
+export class CreateUserCommand {
+  constructor(
+    private eventStore: EventStore,
+    private eventBus: EventBus
+  ) {}
+
+  async execute(command: CreateUserCommand): Promise<string> {
+    const eventId = generateId();
+    const userId = generateId();
+    
+    const event: UserEvent = {
+      id: eventId,
+      type: 'UserCreated',
+      aggregateId: userId,
+      data: {
+        email: command.email,
+        name: command.name,
+        role: command.role || 'user',
+      },
+      timestamp: new Date(),
+      version: 1,
+    };
+
+    // Store event in event store
+    await this.eventStore.appendEvent('user', userId, event);
+    
+    // Publish to event bus
+    await this.eventBus.publish('UserCreated', event);
+    
+    return userId;
+  }
+}
+
+// Query Handler (Read Model)
+export class UserQueryHandler {
+  constructor(private readModelDb: Database) {}
+
+  async getUserById(userId: string): Promise<UserView | null> {
+    return await this.readModelDb.user.findUnique({
+      where: { id: userId }
+    });
+  }
+
+  async searchUsers(criteria: UserSearchCriteria): Promise<UserView[]> {
+    return await this.readModelDb.user.findMany({
+      where: {
+        name: { contains: criteria.name },
+        email: { contains: criteria.email },
+        role: criteria.role,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: criteria.limit || 50,
+    });
+  }
+}
+
+// Event Handler (Read Model Updater)
+export class UserEventHandler {
+  constructor(private readModelDb: Database) {}
+
+  @EventHandler('UserCreated')
+  async handleUserCreated(event: UserEvent): Promise<void> {
+    const userData = event.data as any;
+    
+    await this.readModelDb.user.create({
+      data: {
+        id: event.aggregateId,
+        email: userData.email,
+        name: userData.name,
+        role: userData.role,
+        createdAt: event.timestamp,
+        updatedAt: event.timestamp,
+      },
+    });
+  }
+
+  @EventHandler('UserUpdated')
+  async handleUserUpdated(event: UserEvent): Promise<void> {
+    const userData = event.data as any;
+    
+    await this.readModelDb.user.update({
+      where: { id: event.aggregateId },
+      data: {
+        ...userData,
+        updatedAt: event.timestamp,
+      },
+    });
+  }
+}
+
+// Idempotent Event Processor
+export class EventProcessor {
+  constructor(
+    private eventStore: EventStore,
+    private handlers: Map<string, EventHandler[]>
+  ) {}
+
+  async processEvent(event: UserEvent): Promise<void> {
+    // Check if event has already been processed
+    const processed = await this.eventStore.isEventProcessed(event.id);
+    if (processed) {
+      return; // Idempotent - skip already processed events
+    }
+
+    // Get handlers for this event type
+    const handlers = this.handlers.get(event.type) || [];
+    
+    // Process all handlers
+    for (const handler of handlers) {
+      try {
+        await handler.handle(event);
+      } catch (error) {
+        console.error(`Error processing event ${event.id}:`, error);
+        // Continue processing other handlers
+      }
+    }
+
+    // Mark event as processed
+    await this.eventStore.markEventProcessed(event.id);
+  }
+}
+```
+</example_good>
+
+<example_bad>
+```typescript
+// BAD: No event sourcing, direct database operations
+export class UserService {
+  constructor(private db: Database) {}
+
+  // BAD: Direct database mutation without events
+  async createUser(userData: any): Promise<User> {
+    // No event sourcing - state changes are not tracked
+    return await this.db.user.create({
+      data: userData
+    });
+  }
+
+  // BAD: No CQRS separation - mixing commands and queries
+  async getUserWithOrders(userId: string): Promise<any> {
+    // This mixes command and query responsibilities
+    const user = await this.db.user.findUnique({ where: { id: userId } });
+    const orders = await this.db.order.findMany({ where: { userId } });
+    return { user, orders };
+  }
+
+  // BAD: No event versioning or schema evolution
+  async updateUser(userId: string, updates: any): Promise<User> {
+    // No versioning - breaking changes will break existing data
+    return await this.db.user.update({
+      where: { id: userId },
+      data: updates
+    });
+  }
+
+  // BAD: No idempotency handling
+  async processEvent(event: any): Promise<void> {
+    // No idempotency - duplicate processing can cause issues
+    await this.someBusinessLogic(event);
+  }
+}
+```
+</example_bad>

@@ -1,0 +1,380 @@
+---
+description: Run Platform Engineering and Internal Developer Platform Standards Check
+globs: ["**/platform/**/*.ts", "**/infrastructure/**/*.ts", "**/devops/**/*.ts", "**/internal-platform/**/*.ts"]
+---
+# Infrastructure: Platform Engineering & Internal Developer Platform Standards
+
+<audit_rules>
+- You MUST implement proper platform as a product mindset with user experience focus for developers.
+- You MUST implement proper self-service capabilities for common developer workflows.
+- You MUST implement proper golden paths for common deployment patterns and architectures.
+- You MUST implement proper abstraction of infrastructure complexity from developers.
+- You MUST implement proper observability and monitoring for platform services.
+- You MUST implement proper governance and compliance controls at platform level.
+- You MUST implement proper documentation and onboarding for platform capabilities.
+- You MUST implement proper feedback loops and continuous improvement mechanisms.
+- You MUST implement proper security boundaries and access controls for platform services.
+- You MUST implement proper cost management and resource optimization at platform level.
+</audit_rules>
+
+<example_good>
+```typescript
+// Platform Engineering Implementation
+import { z } from 'zod';
+import { PlatformService } from './services';
+import { DeveloperPortal } from './portal';
+import { InfrastructureAbstraction } from './infrastructure';
+
+// Platform as a Product - Developer Experience Focus
+export class InternalDeveloperPlatform {
+  constructor(
+    private platformService: PlatformService,
+    private developerPortal: DeveloperPortal,
+    private infrastructure: InfrastructureAbstraction,
+    private observability: PlatformObservability,
+    private governance: PlatformGovernance
+  ) {}
+
+  // Self-service capabilities for common workflows
+  async provisionService(request: ServiceProvisioningRequest): Promise<ServiceProvisioningResult> {
+    // Validate request
+    const validated = await this.validateServiceRequest(request);
+    
+    // Apply governance policies
+    const governanceCheck = await this.governance.validateRequest(validated);
+    if (!governanceCheck.approved) {
+      throw new Error(`Request not approved: ${governanceCheck.reason}`);
+    }
+
+    // Provision service through golden path
+    const result = await this.platformService.provisionService({
+      type: validated.type,
+      environment: validated.environment,
+      specifications: validated.specifications,
+      goldenPath: true,
+    });
+
+    // Setup observability
+    await this.observability.setupMonitoring(result.serviceId, validated.type);
+
+    // Notify developer
+    await this.developerPortal.notifyProvisioning(result);
+
+    return result;
+  }
+
+  // Golden paths for common deployment patterns
+  async deployApplication(request: DeploymentRequest): Promise<DeploymentResult> {
+    // Validate against golden path
+    const goldenPathValidation = await this.validateGoldenPath(request);
+    if (!goldenPathValidation.valid) {
+      throw new Error(`Deployment not following golden path: ${goldenPathValidation.issues.join(', ')}`);
+    }
+
+    // Abstract infrastructure complexity
+    const infrastructureConfig = await this.infrastructure.generateConfig({
+      applicationType: request.type,
+      environment: request.environment,
+      resources: request.resources,
+      securityLevel: request.securityLevel,
+    });
+
+    // Deploy through platform service
+    const deployment = await this.platformService.deploy({
+      ...request,
+      infrastructure: infrastructureConfig,
+      pipeline: 'golden-path',
+    });
+
+    return deployment;
+  }
+
+  // Developer onboarding and documentation
+  async onboardDeveloper(developer: DeveloperOnboardingRequest): Promise<OnboardingResult> {
+    // Create developer account with appropriate permissions
+    const account = await this.platformService.createDeveloperAccount(developer);
+    
+    // Grant access to platform services
+    await this.platformService.grantAccess(account.id, developer.permissions);
+    
+    // Setup development environment
+    const devEnvironment = await this.platformService.setupDevelopmentEnvironment(account.id);
+    
+    // Provide documentation and tutorials
+    const documentation = await this.developerPortal.getOnboardingDocs(account.role);
+    
+    // Schedule onboarding sessions
+    await this.developerPortal.scheduleOnboarding(account.id, documentation);
+
+    return {
+      accountId: account.id,
+      environment: devEnvironment,
+      documentation,
+      nextSteps: documentation.nextSteps,
+    };
+  }
+
+  // Feedback loops and continuous improvement
+  async collectFeedback(feedback: PlatformFeedback): Promise<void> {
+    // Store feedback
+    await this.platformService.storeFeedback(feedback);
+    
+    // Analyze feedback for patterns
+    const analysis = await this.platformService.analyzeFeedback(feedback);
+    
+    // Trigger improvement process if needed
+    if (analysis.requiresAction) {
+      await this.initiateImprovementProcess(analysis);
+    }
+
+    // Notify feedback submitter
+    await this.developerPortal.acknowledgeFeedback(feedback.id, analysis);
+  }
+
+  private async validateServiceRequest(request: ServiceProvisioningRequest): Promise<ValidatedServiceRequest> {
+    const schema = z.object({
+      type: z.enum(['database', 'cache', 'queue', 'storage', 'compute']),
+      environment: z.enum(['dev', 'staging', 'prod']),
+      specifications: z.object({
+        size: z.string(),
+        tier: z.enum(['basic', 'standard', 'premium']),
+        region: z.string(),
+      }),
+      purpose: z.string().min(10),
+      owner: z.string().email(),
+    });
+
+    return schema.parse(request);
+  }
+
+  private async validateGoldenPath(request: DeploymentRequest): Promise<GoldenPathValidation> {
+    const issues = [];
+    
+    // Check if following golden path
+    if (!request.pipeline || request.pipeline !== 'golden-path') {
+      issues.push('Must use golden-path pipeline');
+    }
+    
+    // Check security configurations
+    if (!request.security || request.security.level < 'standard') {
+      issues.push('Security level must be at least standard');
+    }
+    
+    // Check observability setup
+    if (!request.observability || !request.observability.enabled) {
+      issues.push('Observability must be enabled');
+    }
+
+    return {
+      valid: issues.length === 0,
+      issues,
+    };
+  }
+
+  private async initiateImprovementProcess(analysis: FeedbackAnalysis): Promise<void> {
+    // Create improvement ticket
+    const ticket = await this.platformService.createImprovementTicket(analysis);
+    
+    // Notify platform team
+    await this.platformService.notifyPlatformTeam(ticket);
+    
+    // Track improvement progress
+    await this.platformService.trackImprovement(ticket.id);
+  }
+}
+
+// Developer Portal Interface
+export class DeveloperPortal {
+  constructor(
+    private ui: DeveloperUI,
+    private documentation: DocumentationService,
+    private notifications: NotificationService
+  ) {}
+
+  async getOnboardingDocs(role: string): Promise<OnboardingDocumentation> {
+    return await this.documentation.getOnboardingDocs(role);
+  }
+
+  async notifyProvisioning(result: ServiceProvisioningResult): Promise<void> {
+    await this.notifications.send({
+      type: 'service-provisioned',
+      recipient: result.owner,
+      data: result,
+      template: 'service-provisioned',
+    });
+  }
+
+  async scheduleOnboarding(developerId: string, docs: OnboardingDocumentation): Promise<void> {
+    await this.notifications.send({
+      type: 'onboarding-scheduled',
+      recipient: developerId,
+      data: docs,
+      template: 'onboarding-scheduled',
+    });
+  }
+
+  async acknowledgeFeedback(feedbackId: string, analysis: FeedbackAnalysis): Promise<void> {
+    await this.notifications.send({
+      type: 'feedback-acknowledged',
+      recipient: feedbackId,
+      data: analysis,
+      template: 'feedback-acknowledged',
+    });
+  }
+}
+
+// Infrastructure Abstraction Layer
+export class InfrastructureAbstraction {
+  constructor(
+    private cloudProvider: CloudProvider,
+    private kubernetes: KubernetesService,
+    private monitoring: MonitoringService
+  ) {}
+
+  async generateConfig(config: InfrastructureConfigRequest): Promise<InfrastructureConfig> {
+    // Generate Kubernetes manifests
+    const k8sManifests = await this.kubernetes.generateManifests({
+      applicationType: config.applicationType,
+      resources: config.resources,
+      securityLevel: config.securityLevel,
+    });
+
+    // Generate cloud resources
+    const cloudResources = await this.cloudProvider.generateResources({
+      type: config.applicationType,
+      environment: config.environment,
+      region: config.region,
+    });
+
+    // Generate monitoring configuration
+    const monitoringConfig = await this.monitoring.generateConfig({
+      applicationType: config.applicationType,
+      environment: config.environment,
+    });
+
+    return {
+      kubernetes: k8sManifests,
+      cloud: cloudResources,
+      monitoring: monitoringConfig,
+    };
+  }
+}
+
+// Platform Observability
+export class PlatformObservability {
+  constructor(
+    private metrics: MetricsService,
+    private logging: LoggingService,
+    private tracing: TracingService
+  ) {}
+
+  async setupMonitoring(serviceId: string, serviceType: string): Promise<void> {
+    // Setup metrics collection
+    await this.metrics.setupServiceMetrics(serviceId, serviceType);
+    
+    // Setup logging
+    await this.logging.setupServiceLogging(serviceId, serviceType);
+    
+    // Setup distributed tracing
+    await this.tracing.setupServiceTracing(serviceId, serviceType);
+    
+    // Create dashboards
+    await this.createServiceDashboard(serviceId, serviceType);
+  }
+
+  private async createServiceDashboard(serviceId: string, serviceType: string): Promise<void> {
+    const dashboardConfig = {
+      serviceId,
+      serviceType,
+      metrics: [
+        'request_rate',
+        'error_rate',
+        'latency_p95',
+        'resource_usage',
+      ],
+      alerts: [
+        'high_error_rate',
+        'high_latency',
+        'resource_exhaustion',
+      ],
+    };
+
+    await this.metrics.createDashboard(dashboardConfig);
+  }
+}
+
+// Platform Governance
+export class PlatformGovernance {
+  constructor(
+    private policies: PolicyService,
+    private compliance: ComplianceService,
+    private security: SecurityService
+  ) {}
+
+  async validateRequest(request: ValidatedServiceRequest): Promise<GovernanceResult> {
+    // Check policies
+    const policyCheck = await this.policies.validate(request);
+    if (!policyCheck.compliant) {
+      return {
+        approved: false,
+        reason: `Policy violation: ${policyCheck.violations.join(', ')}`,
+      };
+    }
+
+    // Check compliance
+    const complianceCheck = await this.compliance.validate(request);
+    if (!complianceCheck.compliant) {
+      return {
+        approved: false,
+        reason: `Compliance violation: ${complianceCheck.violations.join(', ')}`,
+      };
+    }
+
+    // Check security
+    const securityCheck = await this.security.validate(request);
+    if (!securityCheck.approved) {
+      return {
+        approved: false,
+        reason: `Security check failed: ${securityCheck.issues.join(', ')}`,
+      };
+    }
+
+    return {
+      approved: true,
+      reason: 'All checks passed',
+    };
+  }
+}
+```
+</example_good>
+
+<example_bad>
+```typescript
+// BAD: No platform engineering approach
+export class BasicInfrastructure {
+  constructor() {
+    // BAD: No abstraction of complexity
+    this.kubectl = new KubectlClient();
+    this.aws = new AWSClient();
+  }
+
+  // BAD: No self-service capabilities
+  async deployService(service: any): Promise<void> {
+    // BAD: Manual infrastructure management
+    const manifest = this.generateManifest(service);
+    await this.kubectl.apply(manifest);
+  }
+
+  // BAD: No golden paths
+  async createDatabase(config: any): Promise<void> {
+    // BAD: Direct cloud provider calls
+    await this.aws.createRDSInstance(config);
+  }
+
+  // BAD: No developer experience focus
+  // BAD: No observability setup
+  // BAD: No governance controls
+  // BAD: No feedback loops
+}
+```
+</example_bad>

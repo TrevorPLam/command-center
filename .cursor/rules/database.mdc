@@ -1,0 +1,38 @@
+---
+description: Supabase and database patterns
+globs:
+  - "packages/database/**"
+  - "supabase/**"
+  - "**/actions/**"
+  - "**/api/**"
+alwaysApply: false
+---
+
+# Database Patterns
+
+## Tenant isolation — non-negotiable
+- tenant_id ALWAYS comes from app_metadata, never from user_metadata or request headers
+- Every table with tenant-scoped data MUST have: RLS enabled, tenant_id index, all four policy types
+- Always use the outer (select ...) wrapper in RLS predicates for performance
+- Connect via Port 6543 (Supavisor transaction pooler), never Port 5432
+
+## Supabase client usage
+- createSupabaseServerClient from @agency/database for Server Components and Server Actions
+- createSupabaseBrowserClient from @agency/database for Client Components
+- NEVER instantiate Supabase directly in app code — always use the package factory
+- NEVER expose the service role key to the client or in NEXT_PUBLIC_ variables
+
+## Cache keys (Redis or any cache)
+- Every cache key MUST be prefixed with `tenant:{id}:` so tenant data never collides. WRONG: `redis.get('posts:' + slug)`. CORRECT: `redis.get('tenant:' + tenantId + ':posts:' + slug)`.
+
+## Migrations
+- All schema changes go in supabase/migrations/ with sequential numbering
+- Never use the Supabase dashboard to modify schema in production
+- Always run supabase test db before deploying a migration
+
+## RLS policy template (copy for every new table)
+- ALTER TABLE public.[name] ENABLE ROW LEVEL SECURITY;
+- CREATE INDEX CONCURRENTLY idx_[name]_tenant_id ON public.[name] (tenant_id);
+- All four policies (SELECT, INSERT WITH CHECK, UPDATE USING+WITH CHECK, DELETE) using **public.tenant_id()** — see supabase/migrations/005_auth_tenant_id_helper.sql
+- For tenant-scoped tables: USING (tenant_id = public.tenant_id()); for tenants table: (id = public.tenant_id())
+- WRONG: inline JWT extraction in policy. CORRECT: USING (tenant_id = public.tenant_id())

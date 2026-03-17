@@ -1,0 +1,518 @@
+---
+description: Run Quantum Computing and Post-Quantum Cryptography Standards Check
+globs: ["**/quantum/**/*.ts", "**/post-quantum/**/*.ts", "**/quantum-algorithms/**/*.ts", "**/quantum-security/**/*.ts"]
+---
+# Future-Proof: Quantum Computing & Post-Quantum Cryptography Standards
+
+<audit_rules>
+- You MUST implement proper post-quantum cryptographic algorithms for quantum-resistant security.
+- You MUST implement proper quantum algorithm selection with complexity analysis and optimization.
+- You MUST implement proper quantum circuit design with error correction and fault tolerance.
+- You MUST implement proper quantum hardware integration with cloud quantum services.
+- You MUST implement proper quantum-classical hybrid algorithms for practical applications.
+- You MUST implement proper quantum key distribution (QKD) for secure communication.
+- You MUST implement proper quantum simulation and testing environments.
+- You MUST implement proper quantum error mitigation and noise reduction techniques.
+- You MUST implement proper quantum resource management and qubit optimization.
+- You MUST implement proper quantum security threat modeling and migration planning.
+</audit_rules>
+
+<example_good>
+```typescript
+// Quantum Computing Implementation
+import { z } from 'zod';
+import { PostQuantumCrypto } from './post-quantum';
+import { QuantumSimulator } from './simulator';
+import { QuantumHardware } from './hardware';
+
+// Post-Quantum Cryptography Implementation
+export class QuantumResistantSecurity {
+  constructor(
+    private postQuantumCrypto: PostQuantumCrypto,
+    private keyManager: QuantumKeyManager,
+    private migrationTool: CryptoMigrationTool
+  ) {}
+
+  // Post-quantum cryptographic algorithms
+  async establishPostQuantumSecurity(config: PostQuantumSecurityConfig): Promise<PostQuantumSecuritySetup> {
+    // Select appropriate post-quantum algorithms
+    const algorithmSelection = await this.selectPostQuantumAlgorithms(config);
+    
+    // Generate post-quantum key pairs
+    const keyPairs = await this.postQuantumCrypto.generateKeyPairs(algorithmSelection);
+    
+    // Deploy post-quantum cryptographic services
+    const cryptoServices = await this.deployCryptoServices(keyPairs, config);
+    
+    // Setup quantum key distribution if available
+    let qkdSetup = null;
+    if (config.enableQKD) {
+      qkdSetup = await this.setupQuantumKeyDistribution(config.qkdConfig);
+    }
+
+    // Configure migration strategy
+    const migrationStrategy = await this.createMigrationStrategy(config, algorithmSelection);
+
+    return {
+      deploymentId: generateId(),
+      algorithmSelection,
+      keyPairs,
+      cryptoServices,
+      qkdSetup,
+      migrationStrategy,
+      deployedAt: Date.now(),
+    };
+  }
+
+  async migrateFromClassic(classicKeys: ClassicKeyPairs, targetAlgorithms: PostQuantumAlgorithmSelection): Promise<MigrationResult> {
+    // Validate migration request
+    const validation = await this.validateMigrationRequest(classicKeys, targetAlgorithms);
+    if (!validation.valid) {
+      throw new Error(`Invalid migration request: ${validation.errors.join(', ')}`);
+    }
+
+    const migrationResults = [];
+
+    // Migrate each key type
+    for (const [keyType, classicKey] of Object.entries(classicKeys)) {
+      const targetAlgorithm = targetAlgorithms[keyType];
+      if (targetAlgorithm) {
+        const result = await this.migrationTool.migrateKey(classicKey, targetAlgorithm);
+        migrationResults.push(result);
+      }
+    }
+
+    return {
+      migrationId: generateId(),
+      results: migrationResults,
+      success: migrationResults.every(r => r.success),
+      migratedAt: Date.now(),
+    };
+  }
+
+  private async selectPostQuantumAlgorithms(config: PostQuantumSecurityConfig): Promise<PostQuantumAlgorithmSelection> {
+    const selection = {
+      keyExchange: null,
+      signatures: null,
+      encryption: null,
+    };
+
+    // Select key exchange algorithm
+    if (config.requirements.keyExchange) {
+      selection.keyExchange = await this.selectKeyExchangeAlgorithm(config.requirements.keyExchange);
+    }
+
+    // Select signature algorithm
+    if (config.requirements.signatures) {
+      selection.signatures = await this.selectSignatureAlgorithm(config.requirements.signatures);
+    }
+
+    // Select encryption algorithm
+    if (config.requirements.encryption) {
+      selection.encryption = await this.selectEncryptionAlgorithm(config.requirements.encryption);
+    }
+
+    return selection;
+  }
+
+  private async selectKeyExchangeAlgorithm(requirements: KeyExchangeRequirements): Promise<PostQuantumAlgorithm> {
+    const candidates = [
+      { name: 'Kyber', type: 'lattice-based', security: 256, performance: 'high' },
+      { name: 'NTRU', type: 'lattice-based', security: 256, performance: 'medium' },
+      { name: 'SIKE', type: 'isogeny-based', security: 256, performance: 'low' },
+    ];
+
+    // Select based on requirements
+    const suitable = candidates.filter(c => 
+      c.security >= requirements.securityLevel &&
+      this.performanceMeetsRequirements(c.performance, requirements.performance)
+    );
+
+    return suitable[0] || candidates[0];
+  }
+
+  private async selectSignatureAlgorithm(requirements: SignatureRequirements): Promise<PostQuantumAlgorithm> {
+    const candidates = [
+      { name: 'Dilithium', type: 'lattice-based', security: 256, size: 'medium' },
+      { name: 'Falcon', type: 'lattice-based', security: 256, size: 'small' },
+      { name: 'SPHINCS+', type: 'hash-based', security: 256, size: 'large' },
+    ];
+
+    const suitable = candidates.filter(c => 
+      c.security >= requirements.securityLevel &&
+      this.sizeMeetsRequirements(c.size, requirements.signatureSize)
+    );
+
+    return suitable[0] || candidates[0];
+  }
+
+  private performanceMeetsRequirements(performance: string, required: PerformanceRequirement): boolean {
+    const levels = { 'low': 1, 'medium': 2, 'high': 3 };
+    return levels[performance] >= levels[required];
+  }
+
+  private sizeMeetsRequirements(size: string, required: SizeRequirement): boolean {
+    const levels = { 'small': 1, 'medium': 2, 'large': 3 };
+    return levels[size] <= levels[required];
+  }
+}
+
+// Quantum Algorithm Implementation
+export class QuantumAlgorithmLibrary {
+  constructor(
+    private algorithmRegistry: QuantumAlgorithmRegistry,
+    private optimizer: QuantumOptimizer,
+    private analyzer: QuantumAnalyzer
+  ) {}
+
+  // Quantum algorithm selection with complexity analysis
+  async executeQuantumAlgorithm(algorithm: QuantumAlgorithmRequest): Promise<QuantumAlgorithmResult> {
+    // Validate algorithm request
+    const validation = await this.validateAlgorithmRequest(algorithm);
+    if (!validation.valid) {
+      throw new Error(`Invalid quantum algorithm request: ${validation.errors.join(', ')}`);
+    }
+
+    // Select quantum hardware or simulator
+    const executionTarget = await this.selectExecutionTarget(algorithm);
+    
+    // Optimize quantum circuit
+    const optimizedCircuit = await this.optimizeQuantumCircuit(algorithm.circuit, executionTarget);
+    
+    // Apply error correction if needed
+    const errorCorrectedCircuit = await this.applyErrorCorrection(optimizedCircuit, executionTarget.errorRates);
+
+    // Execute quantum algorithm
+    const execution = await this.executeQuantumCircuit(errorCorrectedCircuit, executionTarget);
+    
+    // Process results
+    const processedResults = await this.processQuantumResults(execution.results, algorithm);
+
+    return {
+      algorithmId: algorithm.id,
+      executionId: execution.id,
+      target: executionTarget.type,
+      results: processedResults,
+      executionTime: execution.duration,
+      qubitsUsed: execution.qubitsUsed,
+      fidelity: execution.fidelity,
+      errorRates: execution.errorRates,
+      timestamp: Date.now(),
+    };
+  }
+
+  // Quantum circuit design with error correction
+  private async optimizeQuantumCircuit(circuit: QuantumCircuit, target: ExecutionTarget): Promise<OptimizedQuantumCircuit> {
+    // Apply circuit optimization techniques
+    let optimizedCircuit = circuit;
+
+    // Gate fusion
+    optimizedCircuit = await this.fuseGates(optimizedCircuit, target.gateSet);
+    
+    // Qubit mapping
+    optimizedCircuit = await this.mapQubits(optimizedCircuit, target.topology);
+    
+    // Error mitigation
+    optimizedCircuit = await this.applyErrorMitigation(optimizedCircuit, target.errorModel);
+
+    return optimizedCircuit;
+  }
+
+  // Quantum hardware integration
+  private async selectExecutionTarget(algorithm: QuantumAlgorithmRequest): Promise<ExecutionTarget> {
+    // Check if quantum hardware is available and suitable
+    const hardwareCheck = await this.checkHardwareAvailability(algorithm);
+    
+    if (hardwareCheck.available && hardwareCheck.suitable) {
+      return {
+        type: 'hardware',
+        hardwareConfig: hardwareCheck.config,
+        errorRates: hardwareCheck.errorRates,
+        topology: hardwareCheck.topology,
+      };
+    }
+
+    // Fall back to simulator
+    return {
+      type: 'simulator',
+      simulatorConfig: {
+        method: algorithm.simulationMethod || 'state_vector',
+        noiseModel: algorithm.noiseModel || 'depolarizing',
+        precision: algorithm.precision || 'double',
+      },
+      errorRates: this.getDefaultSimulatorErrorRates(),
+      topology: 'all-to-all',
+    };
+  }
+
+  // Quantum-classical hybrid algorithms
+  async executeHybridAlgorithm(hybridRequest: HybridAlgorithmRequest): Promise<HybridAlgorithmResult> {
+    // Validate hybrid algorithm request
+    const validation = await this.validateHybridRequest(hybridRequest);
+    if (!validation.valid) {
+      throw new Error(`Invalid hybrid algorithm request: ${validation.errors.join(', ')}`);
+    }
+
+    // Decompose hybrid algorithm into quantum and classical parts
+    const decomposition = await this.decomposeAlgorithm(hybridRequest.algorithm);
+    
+    // Execute quantum part
+    const quantumResults = await this.executeQuantumPart(decomposition.quantumPart, hybridRequest);
+    
+    // Execute classical part with quantum results as input
+    const classicalResults = await this.executeClassicalPart(
+      decomposition.classicalPart,
+      quantumResults,
+      hybridRequest
+    );
+
+    // Combine results
+    const combinedResults = await this.combineResults(quantumResults, classicalResults);
+
+    return {
+      algorithmId: hybridRequest.id,
+      quantumResults,
+      classicalResults,
+      combinedResults,
+      executionTime: quantumResults.executionTime + classicalResults.executionTime,
+      timestamp: Date.now(),
+    };
+  }
+
+  // Quantum error mitigation and noise reduction
+  private async applyErrorCorrection(circuit: QuantumCircuit, errorRates: ErrorRates): Promise<ErrorCorrectedCircuit> {
+    // Calculate error correction requirements
+    const correctionRequirements = this.calculateCorrectionRequirements(errorRates);
+    
+    // Apply appropriate error correction code
+    const correctedCircuit = await this.applyErrorCorrectionCode(circuit, correctionRequirements);
+    
+    return correctedCircuit;
+  }
+
+  private calculateCorrectionRequirements(errorRates: ErrorRates): ErrorCorrectionRequirements {
+    const requirements = {
+      code: 'surface_code', // Default to surface code
+      distance: 3, // Default distance
+      threshold: errorRates.physicalErrorRate * 10, // Safety factor
+    };
+
+    // Adjust based on error rates
+    if (errorRates.physicalErrorRate > 0.01) {
+      requirements.distance = 5; // Higher distance for higher error rates
+    }
+
+    return requirements;
+  }
+
+  private async applyErrorCorrectionCode(circuit: QuantumCircuit, requirements: ErrorCorrectionRequirements): Promise<ErrorCorrectedCircuit> {
+    // Apply surface code error correction
+    const correctedCircuit = {
+      ...circuit,
+      errorCorrection: {
+        code: requirements.code,
+        distance: requirements.distance,
+        ancillaQubits: this.calculateAncillaQubits(circuit.qubits, requirements.distance),
+      },
+    };
+
+    return correctedCircuit;
+  }
+
+  private calculateAncillaQubits(logicalQubits: number, distance: number): number {
+    // Surface code ancilla calculation
+    return logicalQubits * distance * distance;
+  }
+}
+
+// Quantum Key Distribution Implementation
+export class QuantumKeyDistribution {
+  constructor(
+    private quantumChannel: QuantumChannel,
+    private classicalChannel: ClassicalChannel,
+    private errorCorrection: QKDErrorCorrection
+  ) {}
+
+  // Quantum key distribution for secure communication
+  async establishQuantumKeyDistribution(qkdRequest: QKDRequest): Promise<QKDResult> {
+    // Validate QKD request
+    const validation = await this.validateQKDRequest(qkdRequest);
+    if (!validation.valid) {
+      throw new Error(`Invalid QKD request: ${validation.errors.join(', ')}`);
+    }
+
+    // Setup quantum channel
+    const quantumChannel = await this.setupQuantumChannel(qkdRequest.parties);
+    
+    // Generate quantum keys
+    const keyGeneration = await this.generateQuantumKeys(quantumChannel, {
+      keyLength: qkdRequest.keyLength || 256,
+      algorithm: qkdRequest.algorithm || 'BB84',
+      errorThreshold: qkdRequest.errorThreshold || 0.05,
+    });
+
+    // Perform error estimation and correction
+    const errorCorrection = await this.errorCorrection.performErrorCorrection(
+      keyGeneration.rawKeys,
+      keyGeneration.errorEstimate
+    );
+
+    // Perform privacy amplification
+    const privacyAmplification = await this.performPrivacyAmplification(
+      errorCorrection.correctedKeys,
+      keyGeneration.leakageEstimate
+    );
+
+    return {
+      sessionId: qkdRequest.sessionId,
+      parties: qkdRequest.parties,
+      finalKeys: privacyAmplification.finalKeys,
+      keyLength: privacyAmplification.finalKeys[0].length,
+      securityParameters: {
+        algorithm: qkdRequest.algorithm,
+        errorRate: keyGeneration.errorEstimate,
+        informationLeakage: keyGeneration.leakageEstimate,
+      },
+      establishedAt: Date.now(),
+    };
+  }
+
+  private async generateQuantumKeys(channel: QuantumChannel, config: KeyGenerationConfig): Promise<KeyGenerationResult> {
+    // Quantum transmission phase
+    const quantumTransmission = await this.performQuantumTransmission(channel, config);
+    
+    // Sifting phase
+    const sifting = await this.performSifting(quantumTransmission);
+    
+    // Error estimation
+    const errorEstimation = await this.estimateErrorRate(sifting);
+    
+    return {
+      rawKeys: quantumTransmission.rawKeys,
+      sifting,
+      errorEstimation,
+    };
+  }
+
+  private async performQuantumTransmission(channel: QuantumChannel, config: KeyGenerationConfig): Promise<QuantumTransmission> {
+    // Generate random quantum states
+    const states = await this.generateQuantumStates(config.keyLength);
+    
+    // Transmit quantum states
+    const transmission = await this.channel.transmit(states);
+    
+    // Measure received states
+    const measurements = await this.measureStates(transmission.receivedStates);
+
+    return {
+      transmittedStates: states,
+      receivedStates: transmission.receivedStates,
+      measurements,
+      rawKeys: this.extractRawKeys(measurements),
+    };
+  }
+
+  private async generateQuantumStates(keyLength: number): Promise<QuantumState[]> {
+    const states = [];
+    
+    for (let i = 0; i < keyLength; i++) {
+      // Random basis selection (0: Z, 1: X)
+      const basis = Math.random() < 0.5 ? 0 : 1;
+      
+      // Random bit value
+      const bit = Math.random() < 0.5 ? 0 : 1;
+      
+      // Create quantum state
+      const state = this.createQuantumState(bit, basis);
+      states.push(state);
+    }
+
+    return states;
+  }
+
+  private createQuantumState(bit: number, basis: number): QuantumState {
+    // Create quantum state based on bit and basis
+    if (basis === 0) { // Z basis
+      return {
+        state: bit === 0 ? '|0⟩' : '|1⟩',
+        basis: 'Z',
+        bit,
+      };
+    } else { // X basis
+      return {
+        state: bit === 0 ? '|+⟩' : '|-⟩',
+        basis: 'X',
+        bit,
+      };
+    }
+  }
+}
+
+// Quantum Security Threat Modeling
+export class QuantumSecurityThreatModeler {
+  constructor(
+    private threatAnalyzer: ThreatAnalyzer,
+    private migrationPlanner: MigrationPlanner
+  ) {}
+
+  // Quantum security threat modeling and migration planning
+  async assessQuantumThreats(assessment: QuantumThreatAssessment): Promise<QuantumThreatReport> {
+    // Analyze current cryptographic infrastructure
+    const cryptoAnalysis = await this.analyzeCurrentCrypto(assessment.currentInfrastructure);
+    
+    // Assess quantum computing timeline
+    const timelineAnalysis = await this.assessQuantumTimeline(assessment.scenario);
+    
+    // Identify vulnerable systems
+    const vulnerableSystems = await this.identifyVulnerableSystems(cryptoAnalysis, timelineAnalysis);
+    
+    // Calculate risk scores
+    const riskScores = await this.calculateRiskScores(vulnerableSystems, timelineAnalysis);
+    
+    // Generate migration recommendations
+    const migrationPlan = await this.generateMigrationPlan(vulnerableSystems, riskScores);
+
+    return {
+      assessmentId: assessment.id,
+      scenario: assessment.scenario,
+      cryptoAnalysis,
+      timelineAnalysis,
+      vulnerableSystems,
+      riskScores,
+      migrationPlan,
+      urgency: this.calculateUrgency(riskScores, timelineAnalysis),
+      timestamp: Date.now(),
+    };
+  }
+
+  private calculateUrgency(riskScores: RiskScore[], timeline: QuantumTimeline): UrgencyLevel {
+    const maxRisk = Math.max(...riskScores.map(r => r.score));
+    const timeToQuantum = timeline.yearsToPracticalQuantum;
+
+    if (maxRisk > 0.8 && timeToQuantum < 5) return 'critical';
+    if (maxRisk > 0.6 && timeToQuantum < 10) return 'high';
+    if (maxRisk > 0.4 && timeToQuantum < 15) return 'medium';
+    return 'low';
+  }
+}
+```
+</example_good>
+
+<example_bad>
+```typescript
+// BAD: No quantum computing preparation
+export class BasicCryptoService {
+  // BAD: No post-quantum cryptography
+  async encrypt(data: any, key: any) {
+    // BAD: No quantum threat assessment
+    // BAD: No quantum algorithms
+    // BAD: No QKD implementation
+    return this.classicalEncrypt(data, key);
+  }
+
+  // BAD: No quantum simulation
+  // BAD: No hybrid algorithms
+  // BAD: No quantum security migration
+}
+```
+</example_bad>

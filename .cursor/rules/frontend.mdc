@@ -1,0 +1,40 @@
+---
+description: Next.js 16 and React 19 frontend patterns
+globs:
+  - "apps/**/*.tsx"
+  - "apps/**/*.ts"
+  - "packages/ui/**"
+alwaysApply: false
+---
+
+# Frontend Patterns (Next.js 16 + React 19)
+
+## App Router conventions
+- Server Components by default — do NOT add 'use client' unless you need:
+  - onClick, onChange, or other event handlers
+  - useState, useEffect, or other hooks
+  - browser-only APIs (window, localStorage)
+- 'use cache' for any data that can be cached (Next.js 16 feature) — do NOT use fetch revalidate for cacheable data
+- All async Dynamic APIs (cookies, headers, params) must be awaited
+
+## Tailwind v4 and PostCSS
+- postcss.config.mjs is REQUIRED (use .mjs extension); plugin: @tailwindcss/postcss
+- @import "tailwindcss" in globals.css (NOT the three @tailwind directives from v3)
+- @import "tw-animate-css" in globals.css — use tw-animate-css classes for animations, not tailwindcss-animate or custom keyframes
+- @source directive in globals.css pointing at packages/ui (and any shared UI) so Tailwind v4 scans those paths
+- Design tokens are CSS custom properties in @theme {} blocks
+- No tailwind.config.js — customisation goes in CSS
+- Never use theme() function in CSS — use var(--token-name)
+
+## Data fetching
+- Fetch in Server Components — never in useEffect
+- Use createSupabaseServerClient from @agency/database in Server Components and Server Actions
+- Pass fetched data down as props to Client Components
+- WRONG: 'use client' + useEffect + fetch or Supabase in a component. CORRECT: async Server Component that calls createSupabaseServerClient(cookies()) and awaits .from('table').select(); pass result as props to children.
+
+## Components
+- All shared components live in packages/ui, not in apps
+- Use cn() from @agency/ui for all className merging
+- shadcn/ui components are in packages/ui/src/components
+- Structure: Atomic Design — atoms/, molecules/, organisms/ under packages/ui/src/components; see packages/ui/src/components/README.md and docs/architecture/ARCHITECTURE.md §Component structure
+- WRONG: hardcoded colors (bg-[#hex], style={{ color: '...' }}), or theme() in CSS. CORRECT: cn() and token-based classes (bg-brand-primary, text-text-default, border-border-default).
