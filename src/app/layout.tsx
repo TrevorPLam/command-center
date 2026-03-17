@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { validateEnv } from '@/lib/config/env'
 import { bootstrapRuntime } from '@/lib/config/runtime'
+import { Toaster } from 'sonner'
 import '@/app/globals.css'
 
 // Validate environment on app startup
@@ -17,7 +18,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang='en'>
-      <body className='antialiased'>{children}</body>
+      <body className='antialiased'>
+        {children}
+        <Toaster />
+      </body>
     </html>
   )
 }

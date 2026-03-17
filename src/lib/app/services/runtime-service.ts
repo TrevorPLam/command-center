@@ -29,6 +29,7 @@ import {
   shouldLogError
 } from '../runtime/errors'
 import { createOllamaAdapter } from '../runtime/ollama-adapter'
+import { initializeChatStreamService } from './chat-stream-service'
 import { env } from '@/lib/config/env'
 
 export interface RuntimeServiceConfig {
@@ -501,6 +502,9 @@ export function getRuntimeService(): RuntimeService {
       healthCheckIntervalMs: 10000, // 10 seconds
       maxRetries: 3
     })
+
+    // Initialize chat stream service with the same adapter
+    initializeChatStreamService(adapter)
   }
   
   return runtimeService

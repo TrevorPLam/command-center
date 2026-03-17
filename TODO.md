@@ -639,15 +639,81 @@ export async function withTx<T>(fn: (tx: DbTx) => Promise<T>) {
 
 ---
 
-## [ ] CC-005: Deliver Streaming Chat, Conversation Persistence, and Context Budgeting
+## ✅ CC-005: Deliver Streaming Chat, Conversation Persistence, and Context Budgeting
+**Status: 100% COMPLETE** - 7 of 7 subtasks completed
+
+**Completed Subtasks:**
+- ✅ CC-005-1: Create conversation and message domain models, repositories, and actions
+- ✅ CC-005-2: Implement the SSE chat route and stream normalization layer
+- ✅ CC-005-3: Build the chat panel UI, transcript viewer, composer, and conversation list
+- ✅ CC-005-4: Implement context budgeting, rolling summaries, and model-switch compression
+- ✅ CC-005-5: Add cancellation, timeout UX, and partial-response persistence
+- ✅ CC-005-6: Persist and display runtime usage, latency, and reasoning-trace metadata
+- ✅ CC-005-7: Write transcript, budget, and streaming integration tests
 
 ### Definition of Done
 
-- [ ] Users can create, resume, rename, and delete conversations with persisted message history.
-- [ ] Chat responses stream over SSE with normalized `token`, `thinking`, `tool_call`, `metrics`, `done`, and `error` events.
-- [ ] User-driven cancel/abort stops downstream work and marks the generation record correctly.
-- [ ] A budgeter composes pinned instructions, rolling summary, recent turns, and completion reserve before every generation.
-- [ ] Partial outputs, latency, and usage metadata are persisted for diagnostics and replay.
+- [x] Users can create, resume, rename, and delete conversations with persisted message history.
+- [x] Chat responses stream over SSE with normalized `token`, `thinking`, `tool_call`, `metrics`, `done`, and `error` events.
+- [x] User-driven cancel/abort stops downstream work and marks the generation record correctly.
+- [x] A budgeter composes pinned instructions, rolling summary, recent turns, and completion reserve before every generation.
+- [x] Partial outputs, latency, and usage metadata are persisted for diagnostics and replay.
+
+### Implementation Notes
+
+**Key Achievements:**
+- **Full-stack chat system** with real-time SSE streaming
+- **Conversation management** with complete CRUD operations
+- **Modern React UI** with shadcn/ui components and Zustand state management
+- **Type-safe implementation** with TypeScript strict mode
+- **Proper error handling** and user feedback with toast notifications
+- **Responsive design** with collapsible sidebar and mobile support
+- **Stream normalization** from Ollama NDJSON to standardized event format
+- **Message persistence** with metadata tracking (tokens, latency, thinking traces)
+- **Context budgeting** with intelligent token counting and window management
+- **Rolling summaries** for conversation compression and continuity
+- **Model-switch optimization** for context-aware model selection
+- **Runtime metadata display** with performance metrics and usage statistics
+- **Advanced UI components** for context visualization and summary management
+
+**Technical Architecture:**
+- **Server Actions** for conversation and message CRUD (`src/app/actions/conversations.ts`)
+- **SSE API Route** for streaming chat (`src/app/api/chat/route.ts`)
+- **Chat Stream Service** for stream normalization (`src/lib/app/services/chat-stream-service.ts`)
+- **Context Budget Service** for token management (`src/lib/app/services/context-budget-service.ts`)
+- **Conversation Summary Service** for rolling summaries (`src/lib/app/services/conversation-summary-service.ts`)
+- **Model Switch Compression Service** for optimization (`src/lib/app/services/model-switch-compression-service.ts`)
+- **Zustand Store** for client-side state management (`src/stores/use-chat-store.ts`)
+- **React Components** for UI (`src/components/chat/`)
+- **Database Persistence** through existing repositories
+
+**File Structure Created:**
+```
+src/app/actions/conversations.ts           # Server actions with Zod validation
+src/app/api/chat/route.ts                 # SSE endpoint with stream normalization
+src/lib/app/services/
+├── chat-stream-service.ts                # Stream processing and persistence
+├── context-budget-service.ts             # Token counting and context management
+├── conversation-summary-service.ts       # Rolling summaries and compression
+└── model-switch-compression-service.ts   # Model optimization and switching
+src/stores/use-chat-store.ts               # Zustand state with selectors
+src/components/chat/
+├── chat-panel.tsx                        # Main chat interface with context features
+├── message-list.tsx                       # Message display with streaming
+├── chat-composer.tsx                      # Message input with model selection
+├── conversation-list.tsx                  # Conversation management sidebar
+├── context-usage-indicator.tsx           # Context usage visualization
+└── conversation-summary.tsx              # Summary display and management
+src/components/ui/
+├── progress.tsx                           # Progress bar component
+├── tooltip.tsx                            # Tooltip component
+├── alert.tsx                              # Alert component
+└── card.tsx                               # Card component
+```
+
+**Next Priority:** Proceed to CC-006: Add Model Profiles, Routing Policies, and Structured Output Utilities
+
+---
 
 ### Out of Scope
 
