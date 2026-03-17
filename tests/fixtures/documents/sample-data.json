@@ -1,0 +1,270 @@
+{
+  "title": "Sample JSON Document for Testing",
+  "description": "A comprehensive JSON document designed to test the ingestion pipeline's JSON parsing capabilities",
+  "version": "1.0.0",
+  "metadata": {
+    "author": "Test Suite",
+    "created": "2024-01-01T00:00:00Z",
+    "updated": "2024-01-02T12:30:00Z",
+    "tags": ["test", "json", "ingestion", "pipeline"],
+    "category": "technical-documentation",
+    "language": "en",
+    "word_count": 1500,
+    "complexity": "medium"
+  },
+  "sections": [
+    {
+      "id": "introduction",
+      "title": "Introduction",
+      "type": "prose",
+      "content": "This document serves as a comprehensive test case for the JSON parsing capabilities of the ingestion pipeline. It demonstrates various JSON structures including nested objects, arrays, and different data types.",
+      "metadata": {
+        "word_count": 35,
+        "paragraph_count": 1,
+        "reading_time_minutes": 0.25
+      }
+    },
+    {
+      "id": "data-structures",
+      "title": "Data Structure Examples",
+      "type": "technical",
+      "content": "The following sections demonstrate various data structures that the parser should handle correctly.",
+      "subsections": [
+        {
+          "id": "objects",
+          "title": "Nested Objects",
+          "type": "example",
+          "data": {
+            "user": {
+              "id": "user-123",
+              "profile": {
+                "name": "John Doe",
+                "email": "john.doe@example.com",
+                "preferences": {
+                  "theme": "dark",
+                  "notifications": true,
+                  "language": "en"
+                }
+              },
+              "permissions": ["read", "write", "admin"]
+            }
+          }
+        },
+        {
+          "id": "arrays",
+          "title": "Arrays and Lists",
+          "type": "example",
+          "data": {
+            "numbers": [1, 2, 3, 4, 5, 10, 15, 20, 25, 50, 100],
+            "strings": ["apple", "banana", "cherry", "date", "elderberry"],
+            "mixed": [
+              {"type": "text", "value": "hello"},
+              {"type": "number", "value": 42},
+              {"type": "boolean", "value": true},
+              {"type": "null", "value": null}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "api-examples",
+      "title": "API Response Examples",
+      "type": "technical",
+      "content": "Examples of API response structures that might be ingested as documentation.",
+      "examples": {
+        "user_profile": {
+          "status": "success",
+          "data": {
+            "user_id": "usr_abc123",
+            "username": "johndoe",
+            "profile": {
+              "first_name": "John",
+              "last_name": "Doe",
+              "avatar_url": "https://example.com/avatars/johndoe.jpg",
+              "bio": "Software developer passionate about AI and machine learning."
+            },
+            "statistics": {
+              "posts_count": 42,
+              "followers_count": 150,
+              "following_count": 75,
+              "join_date": "2023-01-15"
+            },
+            "preferences": {
+              "email_notifications": true,
+              "push_notifications": false,
+              "privacy_level": "public",
+              "theme": "dark"
+            }
+          },
+          "metadata": {
+            "timestamp": "2024-01-01T12:00:00Z",
+            "version": "v1.2.0",
+            "request_id": "req_xyz789"
+          }
+        },
+        "error_response": {
+          "status": "error",
+          "error": {
+            "code": "VALIDATION_ERROR",
+            "message": "Invalid input parameters",
+            "details": {
+              "field": "email",
+              "issue": "Invalid email format",
+              "provided_value": "invalid-email"
+            },
+            "suggestions": [
+              "Check email format",
+              "Ensure email is not empty",
+              "Verify email domain"
+            ]
+          },
+          "metadata": {
+            "timestamp": "2024-01-01T12:05:00Z",
+            "request_id": "req_def456"
+          }
+        }
+      }
+    },
+    {
+      "id": "configuration",
+      "title": "Configuration Examples",
+      "type": "technical",
+      "content": "Various configuration formats that might be encountered in documentation.",
+      "configs": {
+        "database": {
+          "development": {
+            "host": "localhost",
+            "port": 5432,
+            "database": "command_center_dev",
+            "username": "dev_user",
+            "password": "dev_password",
+            "ssl": false,
+            "pool_size": 10,
+            "timeout": 30000
+          },
+          "production": {
+            "host": "${DB_HOST}",
+            "port": "${DB_PORT}",
+            "database": "${DB_NAME}",
+            "username": "${DB_USER}",
+            "password": "${DB_PASSWORD}",
+            "ssl": true,
+            "pool_size": 50,
+            "timeout": 10000
+          }
+        },
+        "features": {
+          "chat_enabled": true,
+          "rag_enabled": true,
+          "model_management": true,
+          "document_ingestion": true,
+          "experimental_features": {
+            "voice_input": false,
+            "image_generation": false,
+            "code_execution": true
+          }
+        },
+        "limits": {
+          "max_file_size_mb": 50,
+          "max_files_per_upload": 10,
+          "max_concurrent_jobs": 5,
+          "token_limits": {
+            "default": 4096,
+            "premium": 8192,
+            "enterprise": 32768
+          }
+        }
+      }
+    },
+    {
+      "id": "test-data",
+      "title": "Test Data Generation",
+      "type": "technical",
+      "content": "Structured test data for validating parsing and processing.",
+      "test_cases": [
+        {
+          "name": "Simple Object",
+          "input": {"key": "value", "number": 42},
+          "expected_output": "parsed_simple_object",
+          "metadata": {
+            "complexity": "low",
+            "processing_time_ms": 5
+          }
+        },
+        {
+          "name": "Nested Array",
+          "input": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
+          "expected_output": "parsed_nested_array",
+          "metadata": {
+            "complexity": "medium",
+            "processing_time_ms": 12
+          }
+        },
+        {
+          "name": "Mixed Types",
+          "input": {
+            "string": "hello",
+            "number": 3.14,
+            "boolean": true,
+            "null": null,
+            "array": [1, "two", {"three": 3}],
+            "object": {"nested": {"deep": {"value": "found"}}}
+          },
+          "expected_output": "parsed_mixed_types",
+          "metadata": {
+            "complexity": "high",
+            "processing_time_ms": 25
+          }
+        }
+      ]
+    }
+  ],
+  "statistics": {
+    "total_sections": 5,
+    "total_subsections": 3,
+    "total_examples": 8,
+    "total_test_cases": 3,
+    "estimated_processing_time_ms": 67,
+    "complexity_distribution": {
+      "low": 1,
+      "medium": 2,
+      "high": 2
+    }
+  },
+  "validation_rules": {
+    "required_fields": ["title", "sections", "metadata"],
+    "optional_fields": ["version", "statistics", "validation_rules"],
+    "field_types": {
+      "title": "string",
+      "sections": "array",
+      "metadata": "object",
+      "version": "string",
+      "statistics": "object"
+    },
+    "constraints": {
+      "title": {
+        "min_length": 5,
+        "max_length": 200
+      },
+      "sections": {
+        "min_items": 1,
+        "max_items": 50
+      }
+    }
+  },
+  "processing_instructions": {
+    "parsing_strategy": "structure_aware",
+    "chunking_policy": {
+      "strategy": "json_structure",
+      "max_chunk_size": 1000,
+      "preserve_hierarchy": true,
+      "include_metadata": true
+    },
+    "metadata_extraction": {
+      "extract_keys": ["title", "description", "author", "created"],
+      "calculate_stats": true,
+      "generate_tags": true
+    }
+  }
+}

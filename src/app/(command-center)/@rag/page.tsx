@@ -1,40 +1,38 @@
 import { Panel, PanelHeader, PanelTitle } from '@/components/ui/panel'
 import { StatusIndicator } from '@/components/ui/status-indicator'
+import { IngestionDropzone } from '@/components/rag/ingestion-dropzone'
+import { getIngestionJobsAction, getDocumentStatsAction, getIndexesAction } from '@/app/actions/ingestion'
+import type { UploadFilesActionResult } from '@/app/actions/ingestion'
 
-// Mock server data loader
+// Server data loader
 async function getRagStatus() {
-  // This would be replaced with actual data fetching from your RAG service
+  // Get real data from actions
+  const [statsResult, indexesResult, jobsResult] = await Promise.all([
+    getDocumentStatsAction(),
+    getIndexesAction(),
+    getIngestionJobsAction()
+  ])
+
   return {
-    documents: {
-      total: 1247,
-      indexed: 1247,
+    documents: statsResult.success ? {
+      total: statsResult.stats?.totalDocuments || 0,
+      indexed: statsResult.stats?.indexedDocuments || 0,
+      failed: statsResult.stats?.failedDocuments || 0,
+      processing: statsResult.stats?.processingDocuments || 0,
+    } : {
+      total: 0,
+      indexed: 0,
       failed: 0,
       processing: 0,
     },
     embeddings: {
-      model: 'text-embedding-ada-002',
+      model: 'text-embedding-ada-002', // Would come from settings
       dimensions: 1536,
-      totalVectors: 15678,
-      indexSize: '2.3GB',
+      totalVectors: statsResult.stats?.totalEmbeddings || 0,
+      indexSize: statsResult.stats?.indexSize || '0MB',
     },
-    indexes: [
-      {
-        id: 'docs-index',
-        name: 'Documentation',
-        type: 'lancedb',
-        status: 'ready' as const,
-        documents: 856,
-        lastUpdated: new Date(Date.now() - 3600000).toISOString(),
-      },
-      {
-        id: 'code-index',
-        name: 'Code Repository',
-        type: 'lancedb',
-        status: 'ready' as const,
-        documents: 391,
-        lastUpdated: new Date(Date.now() - 7200000).toISOString(),
-      },
-    ],
+    indexes: indexesResult.success ? indexesResult.indexes || [] : [],
+    jobs: jobsResult.success ? jobsResult.jobs || [] : [],
     retrieval: {
       topK: 5,
       similarityThreshold: 0.7,
@@ -51,12 +49,19 @@ export default async function RagPage() {
     <Panel>
       <PanelHeader>
         <PanelTitle>RAG</PanelTitle>
-        <button className="rounded-md border border-border px-3 py-1 text-sm hover:bg-accent">
-          Upload Documents
-        </button>
       </PanelHeader>
       
-      <div className="space-y-4">
+      <div className="space-y-6">
+        {/* Document Ingestion */}
+        <IngestionDropzone 
+          onUploadStart={(jobId) => {
+            console.log('Upload started:', jobId)
+          }}
+          onUploadComplete={(result) => {
+            console.log('Upload completed:', result)
+          }}
+        />
+
         {/* Documents Overview */}
         <div className="rounded-md border border-border p-4">
           <h4 className="font-medium text-foreground mb-3">Documents</h4>
@@ -76,6 +81,31 @@ export default async function RagPage() {
             </div>
           )}
         </div>
+
+        {/* Active Jobs */}
+        {data.jobs.length > 0 && (
+          <div className="rounded-md border border-border p-4">
+            <h4 className="font-medium text-foreground mb-3">Active Jobs</h4>
+            <div className="space-y-3">
+              {data.jobs.slice(0, 3).map((job) => (
+                <div key={job.id} className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-foreground">{job.id}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {job.type} • {job.status} • Started {new Date(job.startedAt || job.createdAt).toLocaleTimeString()}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <StatusIndicator status={job.status === 'running' ? 'online' : job.status === 'completed' ? 'online' : 'offline'} />
+                    <div className="text-xs text-muted-foreground">
+                      {Math.round((job.progress || 0) * 100)}%
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Embeddings Status */}
         <div className="rounded-md border border-border p-4">
