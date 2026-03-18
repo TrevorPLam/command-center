@@ -21,6 +21,7 @@ import {
 import { ToolRegistry } from './types'
 import { ToolSecurityValidator, ToolInputSanitizer } from './validation'
 import { toolRepository } from '../persistence/tool-repository'
+import { checkCapability } from '../security/capability-guards'
 
 /**
  * In-memory approval store for pending requests
@@ -142,6 +143,12 @@ export class DefaultToolExecutionProvider implements ToolExecutionProvider {
       const tool = this.tools.get(request.toolName)
       if (!tool) {
         return this.createErrorResult('TOOL_NOT_IMPLEMENTED', `Tool '${request.toolName}' not implemented`)
+      }
+
+      // Check capability guards
+      const capabilityResult = await this.checkCapabilities(request, toolDescriptor)
+      if (!capabilityResult.granted) {
+        return this.createErrorResult('CAPABILITY_DENIED', capabilityResult.reason || 'Capability access denied')
       }
 
       // Check if approval is required
@@ -592,6 +599,80 @@ export class DefaultToolExecutionProvider implements ToolExecutionProvider {
       duration: result.metrics.executionTimeMs,
       securityEvents: securityEvents.length
     })
+  }
+
+  /**
+   * Check capabilities against security policy
+   */
+  private async checkCapabilities(
+    request: ToolExecutionRequest,
+    toolDescriptor: any
+  ): Promise<{ granted: boolean; reason?: string }> {
+    // Check each required capability
+    for (const capability of toolDescriptor.capabilities) {
+      const result = checkCapability(
+        capability,
+        request.context,
+        this.extractResourcePath(request.input, capability),
+        this.extractTargetDomain(request.input, capability)
+      )
+
+      if (!result.granted) {
+        return {
+          granted: false,
+          reason: result.reason || `Capability ${capability} not granted`
+        }
+      }
+    }
+
+    return { granted: true }
+  }
+
+  /**
+   * Extract resource path from input for filesystem capabilities
+   */
+  private extractResourcePath(input: unknown, capability: ToolCapability): string | undefined {
+    if (!input || typeof input !== 'object') return undefined
+
+    const inputObj = input as Record<string, unknown>
+    
+    // Common path field names
+    const pathFields = ['path', 'filePath', 'filename', 'directory', 'folder']
+    
+    for (const field of pathFields) {
+      if (typeof inputObj[field] === 'string') {
+        return inputObj[field] as string
+      }
+    }
+
+    return undefined
+  }
+
+  /**
+   * Extract target domain from input for network capabilities
+   */
+  private extractTargetDomain(input: unknown, capability: ToolCapability): string | undefined {
+    if (!input || typeof input !== 'object') return undefined
+
+    const inputObj = input as Record<string, unknown>
+    
+    // Common domain field names
+    const domainFields = ['url', 'domain', 'host', 'endpoint', 'address']
+    
+    for (const field of domainFields) {
+      if (typeof inputObj[field] === 'string') {
+        const value = inputObj[field] as string
+        try {
+          const url = new URL(value)
+          return url.hostname
+        } catch {
+          // If it's not a valid URL, treat it as a domain
+          return value
+        }
+      }
+    }
+
+    return undefined
   }
 }
 

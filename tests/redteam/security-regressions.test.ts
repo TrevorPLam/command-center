@@ -12,7 +12,11 @@ import { promptTemplates, promptRuns } from '@/lib/db/schema'
 import { promptTemplateRepository, promptRunRepository } from '@/lib/app/persistence/prompt-repository'
 import { promptRunRecorder } from '@/lib/app/services/prompt-run-recorder'
 import { promotionGatesService, type PromotionConfig } from '@/lib/app/services/promotion-gates'
+import { createCapabilityGuard } from '@/lib/app/security/capability-guards'
+import { createNetworkSecurityManager } from '@/lib/app/security/network-security'
+import { createOfflineModeManager } from '@/lib/app/security/offline-mode'
 import type { NewPromptTemplate, NewPromptRun } from '@/lib/db/schema'
+import type { ToolContext, ToolCapability } from '@/lib/app/tools/types'
 
 describe('Red-Team Security Tests', () => {
   let testTemplateIds: string[] = []
@@ -830,3 +834,172 @@ async function simulateAdversarialDetection(input: string) {
     tokenCount: 170
   }
 }
+
+// New tests for CC-013 security features
+describe('Capability Guard Security Tests', () => {
+  let mockContext: ToolContext
+
+  beforeEach(() => {
+    mockContext = {
+      executionId: 'test-execution-123',
+      sessionId: 'test-session-456',
+      workspaceDir: '/workspace/test',
+      grantedCapabilities: [],
+      startTime: new Date(),
+    }
+  })
+
+  it('should reject process execution attempts', async () => {
+    const guard = createCapabilityGuard()
+    
+    const result = guard.checkCapability(
+      'process-exec',
+      mockContext
+    )
+
+    expect(result.granted).toBe(false)
+    expect(result.reason).toContain('forbidden')
+    expect(result.securityEvents).toHaveLength(1)
+    expect(result.securityEvents[0].type).toBe('access_denied')
+    expect(result.securityEvents[0].severity).toBe('high')
+  })
+
+  it('should block filesystem access outside allowed paths', async () => {
+    const guard = createCapabilityGuard()
+    
+    const sensitivePaths = [
+      '/etc/passwd',
+      '/etc/shadow',
+      '/root/.ssh/id_rsa',
+      '../.env',
+      '/proc/version',
+    ]
+
+    for (const path of sensitivePaths) {
+      const result = guard.checkCapability(
+        'filesystem-read',
+        mockContext,
+        path
+      )
+
+      expect(result.granted).toBe(false)
+      expect(result.reason).toContain('forbidden')
+    }
+  })
+
+  it('should prevent network access to blocked domains', async () => {
+    const guard = createCapabilityGuard()
+    
+    const blockedDomains = [
+      'malware-example.com',
+      'suspicious-domain.com',
+      'evil-site.net',
+    ]
+
+    for (const domain of blockedDomains) {
+      const result = guard.checkCapability(
+        'network-egress',
+        mockContext,
+        undefined,
+        domain
+      )
+
+      expect(result.granted).toBe(false)
+      expect(result.reason).toContain('forbidden')
+    }
+  })
+})
+
+describe('Network Security Tests', () => {
+  it('should block all-interfaces binding', async () => {
+    const manager = createNetworkSecurityManager()
+    
+    const result = manager.validateBinding('0.0.0.0', 3000)
+    
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContain('Binding to 0.0.0.0 exposes the service on all network interfaces')
+    expect(result.riskLevel).toBe('critical')
+  })
+
+  it('should enforce port restrictions', async () => {
+    const manager = createNetworkSecurityManager()
+    
+    const blockedPorts = [22, 23, 80, 443, 3389]
+    
+    for (const port of blockedPorts) {
+      const result = manager.validateBinding('127.0.0.1', port)
+      expect(result.valid).toBe(false)
+      expect(result.errors).toContain(`Port ${port} is blocked for security reasons`)
+    }
+  })
+
+  it('should detect security posture violations', async () => {
+    // Test air-gapped mode with outbound connections
+    process.env.AIR_GAPPED = 'true'
+    process.env.ALLOW_OUTBOUND = 'true'
+    
+    const manager = createNetworkSecurityManager()
+    const validation = manager.validateSecurityPosture()
+    
+    expect(validation.valid).toBe(false)
+    expect(validation.errors).toContain('Air-gapped posture should not allow outbound connections')
+    
+    // Clean up
+    delete process.env.AIR_GAPPED
+    delete process.env.ALLOW_OUTBOUND
+  })
+})
+
+describe('Offline Mode Security Tests', () => {
+  it('should block all network access in air-gapped mode', async () => {
+    process.env.AIR_GAPPED = 'true'
+    const manager = createOfflineModeManager()
+    
+    const testDomains = [
+      'google.com',
+      'github.com',
+      'malicious-site.com',
+    ]
+
+    for (const domain of testDomains) {
+      const result = manager.enforceNetworkRestrictions(`https://${domain}`)
+      expect(result.allowed).toBe(false)
+      expect(result.reason).toContain('blocked')
+    }
+
+    // Clean up
+    delete process.env.AIR_GAPPED
+  })
+
+  it('should validate air-gapped configuration consistency', async () => {
+    process.env.AIR_GAPPED = 'true'
+    process.env.ALLOW_OUTBOUND = 'true' // Inconsistent configuration
+    
+    const manager = createOfflineModeManager()
+    const validation = manager.validateConfiguration()
+    
+    expect(validation.valid).toBe(false)
+    expect(validation.violations).toContain(
+      'Air-gapped posture should not allow outbound connections'
+    )
+
+    // Clean up
+    delete process.env.AIR_GAPPED
+    delete process.env.ALLOW_OUTBOUND
+  })
+
+  it('should enforce resource limits in offline mode', async () => {
+    process.env.OFFLINE_MODE = 'true'
+    const manager = createOfflineModeManager()
+    
+    const restrictions = manager.getRestrictions()
+    
+    expect(restrictions.disableExternalApis).toBe(true)
+    expect(restrictions.disableModelDownloads).toBe(true)
+    expect(restrictions.disableTelemetry).toBe(true)
+    expect(restrictions.requireLocalResources).toBe(true)
+
+    // Clean up
+    delete process.env.OFFLINE_MODE
+  })
+})

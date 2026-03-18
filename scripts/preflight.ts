@@ -2,6 +2,7 @@
 
 import { validateEnv } from '../src/lib/config/env'
 import { bootstrapRuntime } from '../src/lib/config/runtime'
+import { runStartupSecurityValidation } from '../src/lib/app/security/startup-validation'
 import { existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 
@@ -209,6 +210,39 @@ class PreflightChecker {
     }
   }
 
+  async checkSecurity(): Promise<void> {
+    try {
+      const securityResult = await runStartupSecurityValidation()
+      
+      if (securityResult.valid) {
+        this.addCheck({
+          name: 'Security Configuration',
+          status: 'pass',
+          message: 'Security configuration is valid',
+          details: { riskLevel: securityResult.riskLevel },
+        })
+      } else {
+        this.addCheck({
+          name: 'Security Configuration',
+          status: 'warn',
+          message: 'Security issues detected',
+          details: { 
+            riskLevel: securityResult.riskLevel,
+            errors: securityResult.errors.length,
+            warnings: securityResult.warnings.length,
+          },
+        })
+      }
+    } catch (error) {
+      this.addCheck({
+        name: 'Security Configuration',
+        status: 'fail',
+        message: 'Security validation failed',
+        details: { error: (error as Error).message },
+      })
+    }
+  }
+
   async runAllChecks(): Promise<void> {
     console.log('🚀 Command Center Preflight Check')
     console.log('==================================\n')
@@ -219,6 +253,7 @@ class PreflightChecker {
     await this.checkDirectories()
     await this.checkDependencies()
     await this.checkTypeScript()
+    await this.checkSecurity()
     await this.checkOllamaConnectivity()
 
     console.log('\n==================================')

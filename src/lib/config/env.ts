@@ -30,6 +30,14 @@ const envSchema = z.object({
   ENABLE_AUTH: z.string().transform(Boolean).default('false'),
   JWT_SECRET: z.string().optional(),
 
+  // Network Security
+  NETWORK_ISOLATION: z.string().transform(Boolean).default('true'),
+  ALLOW_OUTBOUND: z.string().transform(Boolean).default('true'),
+  ALLOWED_DOMAINS: z.string().optional(),
+  BLOCKED_DOMAINS: z.string().optional(),
+  AIR_GAPPED: z.string().transform(Boolean).default('false'),
+  EXIT_ON_CRITICAL: z.string().transform(Boolean).default('true'),
+
   // Development
   ENABLE_DEVTOOLS: z.string().transform(Boolean).default('false'),
 })
