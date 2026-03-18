@@ -5,7 +5,7 @@
  * Provides typed CRUD operations with status tracking.
  */
 
-import { eq, and, desc, inArray } from 'drizzle-orm'
+import { eq, and, desc, inArray, isNull, lte, or, sql } from 'drizzle-orm'
 import { db, withTransaction } from '@/lib/db/client'
 import { jobs, toolRuns } from '@/lib/db/schema'
 import type { Job, NewJob, ToolRun, NewToolRun } from '@/lib/db/schema'
@@ -59,7 +59,7 @@ export class JobRepository {
   } = {}): Promise<Job[]> {
     const { limit = 50, offset = 0, status, type } = options
 
-    let whereConditions = []
+    const whereConditions = []
     
     if (status) {
       whereConditions.push(eq(jobs.status, status))
@@ -133,6 +133,44 @@ export class JobRepository {
     }
 
     return await this.update(id, updateData)
+  }
+
+  /**
+   * Update job progress
+   */
+  async updateProgress(id: string, progress: number, currentStep?: number): Promise<Job | null> {
+    const updateData: Partial<NewJob> = {
+      progress: Math.max(0, Math.min(1, progress)), // Clamp between 0 and 1
+      updatedAt: new Date()
+    }
+
+    if (currentStep !== undefined) {
+      updateData.currentStep = currentStep
+    }
+
+    return await this.update(id, updateData)
+  }
+
+  /**
+   * Assign a worker to a job
+   */
+  async assignWorker(id: string, workerId: string): Promise<Job | null> {
+    return await this.update(id, {
+      workerId,
+      status: 'running',
+      startedAt: new Date()
+    })
+  }
+
+  /**
+   * Increment job step counter
+   */
+  async incrementStep(id: string): Promise<Job | null> {
+    const job = await this.getById(id)
+    if (!job) return null
+
+    const currentStep = ((job as any).currentStep || 0) + 1
+    return await this.update(id, { currentStep })
   }
 
   /**
@@ -218,6 +256,72 @@ export class JobRepository {
       )
 
     return result.changes
+  }
+
+  /**
+   * Get jobs ready for processing (including retry delays)
+   */
+  async getReadyForProcessing(limit: number = 10): Promise<Job[]> {
+    const now = new Date()
+    
+    return await db
+      .select()
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.status, 'pending'),
+          or(
+            isNull(jobs.nextRetryAt),
+            lte(jobs.nextRetryAt, now)
+          )
+        )
+      )
+      .orderBy(desc(jobs.priority), desc(jobs.createdAt))
+      .limit(limit)
+  }
+
+  /**
+   * Get jobs that have timed out
+   */
+  async getTimedOutJobs(timeoutMs: number = 300000): Promise<Job[]> {
+    const cutoffTime = new Date(Date.now() - timeoutMs)
+    
+    return await db
+      .select()
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.status, 'running'),
+          lte(jobs.startedAt, cutoffTime)
+        )
+      )
+  }
+
+  /**
+   * Get jobs by worker ID
+   */
+  async getByWorkerId(workerId: string): Promise<Job[]> {
+    return await db
+      .select()
+      .from(jobs)
+      .where(eq(jobs.workerId, workerId))
+      .orderBy(desc(jobs.createdAt))
+  }
+
+  /**
+   * Get retryable jobs
+   */
+  async getRetryableJobs(): Promise<Job[]> {
+    return await db
+      .select()
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.status, 'failed'),
+          sql`retry_count < max_retries`
+        )
+      )
+      .orderBy(desc(jobs.createdAt))
   }
 }
 

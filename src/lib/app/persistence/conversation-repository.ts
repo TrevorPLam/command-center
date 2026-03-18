@@ -28,7 +28,7 @@ export class ConversationRepository {
    * Get a conversation by ID with optional message count
    */
   async getById(id: string, includeMessageCount = false): Promise<Conversation | null> {
-    let query = (await db)
+    const query = (await db)
       .select()
       .from(conversations)
       .where(eq(conversations.id, id))
@@ -63,7 +63,7 @@ export class ConversationRepository {
   } = {}): Promise<Conversation[]> {
     const { limit = 50, offset = 0, archived, modelProfileId } = options
 
-    let whereConditions = []
+    const whereConditions = []
     
     if (archived !== undefined) {
       whereConditions.push(

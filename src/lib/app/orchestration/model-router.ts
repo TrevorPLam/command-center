@@ -89,7 +89,7 @@ export class ModelRouter {
       const allProfiles = await modelProfileRepository.findActive()
       
       // Filter by basic requirements
-      let candidates = this.filterCandidates(allProfiles, request)
+      const candidates = this.filterCandidates(allProfiles, request)
       
       // Score remaining candidates
       const scoredCandidates = await this.scoreCandidates(candidates, request)

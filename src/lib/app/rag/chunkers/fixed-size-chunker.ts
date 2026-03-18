@@ -91,7 +91,7 @@ export class FixedSizeChunker extends BaseChunker {
     sections: Array<{ path: string[]; text: string; metadata: Record<string, unknown> }>
   ): { sectionPath: string[]; metadata: Record<string, unknown> } {
     // Find the primary section (where most of the chunk content comes from)
-    let maxOverlap = 0
+    const maxOverlap = 0
     let primarySectionIndex = 0
 
     boundaries.forEach((boundary, index) => {
@@ -139,7 +139,7 @@ export class FixedSizeChunker extends BaseChunker {
         const lastPeriod = text.lastIndexOf('. ', end)
 
         // Prefer breaking at sentence, then newline, then space
-        let breakPoint = Math.max(lastPeriod + 1, lastNewline, lastSpace)
+        const breakPoint = Math.max(lastPeriod + 1, lastNewline, lastSpace)
 
         // Only use break point if it's not too far back
         if (breakPoint > start && breakPoint > end - maxChunkSize * 0.2) {

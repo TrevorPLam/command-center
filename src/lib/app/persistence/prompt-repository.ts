@@ -77,7 +77,7 @@ export class PromptTemplateRepository {
       search 
     } = options
 
-    let whereConditions = [eq(promptTemplates.isActive, isActive)]
+    const whereConditions = [eq(promptTemplates.isActive, isActive)]
     
     if (category) {
       whereConditions.push(eq(promptTemplates.category, category))
@@ -297,7 +297,7 @@ export class PromptRunRepository {
   } = {}): Promise<PromptRun[]> {
     const { limit = 50, offset = 0, templateId, status } = options
 
-    let whereConditions = []
+    const whereConditions = []
     
     if (templateId) {
       whereConditions.push(eq(promptRuns.templateId, templateId))

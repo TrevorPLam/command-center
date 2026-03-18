@@ -175,9 +175,9 @@ export class ChatStreamService {
 
     // Create assistant message placeholder
     const assistantMessageId = uuidv4()
-    let assistantContent = ''
-    let startTime = Date.now()
-    let tokenCount = 0
+    const assistantContent = ''
+    const startTime = Date.now()
+    const tokenCount = 0
 
     // Create assistant message (will be updated as stream progresses)
     const assistantMessageData: NewMessage = {

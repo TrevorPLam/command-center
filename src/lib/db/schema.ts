@@ -30,6 +30,7 @@ export const CORE_TABLES = [
   'prompt_runs',
   'experiments',
   'metrics_rollups',
+  'logs',
   'settings'
 ] as const
 
@@ -159,20 +160,33 @@ export const indexes = sqliteTable('indexes', {
 
 export const jobs = sqliteTable('jobs', {
   id: text('id').primaryKey(),
-  type: text('type').notNull(), // 'rag_index' | 'model_sync' | 'batch_process' | 'export'
-  status: text('status').notNull(), // 'pending' | 'running' | 'completed' | 'failed' | 'cancelled'
+  type: text('type').notNull(), // 'rag_index' | 'model_sync' | 'batch_process' | 'export' | 'agent_run'
+  status: text('status').notNull(), // 'pending' | 'running' | 'completed' | 'failed' | 'cancelled' | 'retrying'
   config: text('config').notNull(), // JSON configuration
   result: text('result'), // JSON result data
   error: text('error'), // Error message
   progress: real('progress').notNull().default(0), // 0.0 to 1.0
   startedAt: integer('started_at', { mode: 'timestamp_ms' }),
   completedAt: integer('completed_at', { mode: 'timestamp_ms' }),
+  // Agent-specific fields
+  maxSteps: integer('max_steps'), // Maximum steps for agent jobs
+  currentStep: integer('current_step').default(0), // Current step in agent execution
+  retryCount: integer('retry_count').default(0), // Number of retries attempted
+  maxRetries: integer('max_retries').default(3), // Maximum retry attempts
+  nextRetryAt: integer('next_retry_at', { mode: 'timestamp_ms' }), // When to retry failed job
+  priority: integer('priority').default(0), // Job priority (higher = more important)
+  workerId: text('worker_id'), // ID of worker processing this job
+  timeoutMs: integer('timeout_ms'), // Job timeout in milliseconds
+  metadata: text('metadata'), // Additional JSON metadata
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
 }, (table) => ({
   typeIdx: index('jobs_type_idx').on(table.type),
   statusIdx: index('jobs_status_idx').on(table.status),
   createdAtIdx: index('jobs_created_at_idx').on(table.createdAt),
+  priorityIdx: index('jobs_priority_idx').on(table.priority),
+  nextRetryIdx: index('jobs_next_retry_idx').on(table.nextRetryAt),
+  workerIdx: index('jobs_worker_idx').on(table.workerId),
 }))
 
 export const toolRuns = sqliteTable('tool_runs', {
@@ -257,13 +271,30 @@ export const metricsRollups = sqliteTable('metrics_rollups', {
   period: text('period').notNull(), // 'minute' | 'hour' | 'day' | 'week' | 'month'
   timestamp: integer('timestamp', { mode: 'timestamp_ms' }).notNull(),
   metricName: text('metric_name').notNull(),
-  metricValue: real('metric_value').notNull(),
+  value: real('value').notNull(),
   tags: text('tags'), // JSON key-value pairs for filtering
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
 }, (table) => ({
   periodIdx: index('metrics_rollups_period_idx').on(table.period),
   timestampIdx: index('metrics_rollups_timestamp_idx').on(table.timestamp),
   metricNameIdx: index('metrics_rollups_metric_name_idx').on(table.metricName),
+}))
+
+// Structured logs table
+export const logs = sqliteTable('logs', {
+  id: text('id').primaryKey(),
+  timestamp: integer('timestamp', { mode: 'timestamp_ms' }).notNull(),
+  level: text('level').notNull(), // 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal'
+  category: text('category').notNull(), // 'inference' | 'retrieval' | 'tool' | 'queue' | 'auth' | 'metrics' | 'system'
+  message: text('message').notNull(),
+  metadata: text('metadata'), // JSON metadata
+  error: text('error'), // JSON error details
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+}, (table) => ({
+  timestampIdx: index('logs_timestamp_idx').on(table.timestamp),
+  levelIdx: index('logs_level_idx').on(table.level),
+  categoryIdx: index('logs_category_idx').on(table.category),
+  messageIdx: index('logs_message_idx').on(table.message),
 }))
 
 export const settings = sqliteTable('settings', {

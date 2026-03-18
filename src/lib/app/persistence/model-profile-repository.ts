@@ -285,7 +285,7 @@ export class ModelProfileRepository {
       const { page = 1, limit = 20, role, isActive = true, search } = options
       const offset = (page - 1) * limit
 
-      let whereConditions = []
+      const whereConditions = []
       
       if (isActive !== undefined) {
         whereConditions.push(eq(modelProfiles.isActive, isActive))

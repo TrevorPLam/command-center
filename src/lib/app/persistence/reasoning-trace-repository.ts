@@ -421,7 +421,7 @@ export class ReasoningTraceRepository {
       const messageList = await messageQuery.orderBy(desc(messages.createdAt))
 
       // Filter by metadata criteria
-      let traces: ReasoningTrace[] = []
+      const traces: ReasoningTrace[] = []
       for (const message of messageList) {
         if (message.metadata) {
           const metadata = JSON.parse(message.metadata)
