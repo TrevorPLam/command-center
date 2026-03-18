@@ -1,0 +1,185 @@
+{
+  "name": "Basic Conversations",
+  "description": "Fundamental chat scenarios for testing basic conversation capabilities",
+  "category": "chat",
+  "version": "1.0.0",
+  "created_at": "2024-01-15T00:00:00Z",
+  "tests": [
+    {
+      "description": "Simple greeting response",
+      "vars": {
+        "user_query": "Hello! How are you today?",
+        "context": "A friendly conversation starter"
+      },
+      "assert": [
+        {
+          "type": "javascript",
+          "value": "output.toLowerCase().includes('hello') || output.toLowerCase().includes('hi')"
+        },
+        {
+          "type": "javascript",
+          "value": "output.length > 10 && output.length < 500"
+        }
+      ],
+      "metadata": {
+        "difficulty": "easy",
+        "tags": ["greeting", "basic"],
+        "expected_behavior": "Response should acknowledge the greeting and provide a friendly reply"
+      }
+    },
+    {
+      "description": "Answer a direct question",
+      "vars": {
+        "user_query": "What is the capital of France?",
+        "context": "User asking a straightforward factual question"
+      },
+      "assert": [
+        {
+          "type": "javascript",
+          "value": "output.toLowerCase().includes('paris')"
+        },
+        {
+          "type": "model-graded-closedqa",
+          "value": "Does the response correctly identify Paris as the capital of France?"
+        }
+      ],
+      "metadata": {
+        "difficulty": "easy",
+        "tags": ["factual", "geography"],
+        "expected_behavior": "Should provide the correct answer with some context"
+      }
+    },
+    {
+      "description": "Provide help or assistance",
+      "vars": {
+        "user_query": "Can you help me understand how to use this application?",
+        "context": "User seeking guidance on application usage"
+      },
+      "assert": [
+        {
+          "type": "javascript",
+          "value": "output.toLowerCase().includes('help') || output.toLowerCase().includes('assist')"
+        },
+        {
+          "type": "model-graded-closedqa",
+          "value": "Does the response offer helpful guidance or ask clarifying questions?"
+        }
+      ],
+      "metadata": {
+        "difficulty": "medium",
+        "tags": ["help", "guidance"],
+        "expected_behavior": "Should provide helpful assistance or ask relevant clarifying questions"
+      }
+    },
+    {
+      "description": "Handle clarification request",
+      "vars": {
+        "user_query": "I don't understand. Can you explain that differently?",
+        "context": "User is confused and needs a simpler explanation"
+      },
+      "assert": [
+        {
+          "type": "javascript",
+          "value": "output.toLowerCase().includes('explain') || output.toLowerCase().includes('clarify')"
+        },
+        {
+          "type": "model-graded-openqa",
+          "value": "Rate how well the response handles the request for clarification (1-10)"
+        }
+      ],
+      "metadata": {
+        "difficulty": "medium",
+        "tags": ["clarification", "communication"],
+        "expected_behavior": "Should acknowledge confusion and provide a clearer explanation"
+      }
+    },
+    {
+      "description": "Express gratitude appropriately",
+      "vars": {
+        "user_query": "Thank you so much for your help!",
+        "context": "User expressing appreciation for assistance"
+      },
+      "assert": [
+        {
+          "type": "javascript",
+          "value": "output.toLowerCase().includes('you\\'re welcome') || output.toLowerCase().includes('welcome') || output.toLowerCase().includes('happy')"
+        },
+        {
+          "type": "javascript",
+          "value": "output.length > 5"
+        }
+      ],
+      "metadata": {
+        "difficulty": "easy",
+        "tags": ["gratitude", "politeness"],
+        "expected_behavior": "Should respond appropriately to thanks with politeness"
+      }
+    },
+    {
+      "description": "Handle error or mistake gracefully",
+      "vars": {
+        "user_query": "I think you made a mistake in your previous response.",
+        "context": "User pointing out an error in the AI's response"
+      },
+      "assert": [
+        {
+          "type": "javascript",
+          "value": "output.toLowerCase().includes('mistake') || output.toLowerCase().includes('error') || output.toLowerCase().includes('sorry')"
+        },
+        {
+          "type": "model-graded-closedqa",
+          "value": "Does the response acknowledge the mistake gracefully and offer to correct it?"
+        }
+      ],
+      "metadata": {
+        "difficulty": "hard",
+        "tags": ["error-handling", "correction"],
+        "expected_behavior": "Should acknowledge the error, apologize if appropriate, and offer to provide correct information"
+      }
+    },
+    {
+      "description": "Provide creative suggestion",
+      "vars": {
+        "user_query": "What should I make for dinner tonight?",
+        "context": "User looking for creative meal suggestions"
+      },
+      "assert": [
+        {
+          "type": "javascript",
+          "value": "output.length > 50"
+        },
+        {
+          "type": "model-graded-openqa",
+          "value": "Rate the creativity and usefulness of the dinner suggestions (1-10)"
+        }
+      ],
+      "metadata": {
+        "difficulty": "medium",
+        "tags": ["creative", "suggestions"],
+        "expected_behavior": "Should provide creative and helpful dinner suggestions with some variety"
+      }
+    },
+    {
+      "description": "Handle ambiguous request",
+      "vars": {
+        "user_query": "It's not working",
+        "context": "User reporting a problem with minimal context"
+      },
+      "assert": [
+        {
+          "type": "javascript",
+          "value": "output.toLowerCase().includes('what') || output.toLowerCase().includes('more') || output.toLowerCase().includes('tell')"
+        },
+        {
+          "type": "model-graded-closedqa",
+          "value": "Does the response ask for more specific information to help solve the problem?"
+        }
+      ],
+      "metadata": {
+        "difficulty": "medium",
+        "tags": ["troubleshooting", "clarification"],
+        "expected_behavior": "Should ask clarifying questions to understand the problem better"
+      }
+    }
+  ]
+}

@@ -1,183 +1,216 @@
+'use client'
+
+import { useState, useEffect } from 'react'
 import { Panel, PanelHeader, PanelTitle } from '@/components/ui/panel'
+import { TemplateList } from '@/components/prompts/template-list'
+import { TemplateEditor } from '@/components/prompts/template-editor'
+import { promptTemplateRepository } from '@/lib/app/persistence/prompt-repository'
+import { type PromptTemplate } from '@/lib/db/schema'
+import { type PromptVersion } from '@/lib/app/persistence/prompt-repository'
 
-// Mock server data loader
-async function getPrompts() {
-  // This would be replaced with actual data fetching from your prompts service
-  return {
-    systemPrompts: [
-      {
-        id: 'default-assistant',
-        name: 'Default Assistant',
-        description: 'General purpose assistant prompt',
-        category: 'system',
-        usage: 1247,
-        lastUsed: new Date(Date.now() - 1800000).toISOString(),
-        content: 'You are a helpful AI assistant...',
-      },
-      {
-        id: 'code-reviewer',
-        name: 'Code Reviewer',
-        description: 'Specialized for code review tasks',
-        category: 'system',
-        usage: 856,
-        lastUsed: new Date(Date.now() - 3600000).toISOString(),
-        content: 'You are an expert code reviewer...',
-      },
-    ],
-    userPrompts: [
-      {
-        id: 'custom-1',
-        name: 'Documentation Writer',
-        description: 'Helps write technical documentation',
-        category: 'user',
-        usage: 423,
-        lastUsed: new Date(Date.now() - 7200000).toISOString(),
-        content: 'You are a technical documentation expert...',
-      },
-      {
-        id: 'custom-2',
-        name: 'Debug Helper',
-        description: 'Assists with debugging tasks',
-        category: 'user',
-        usage: 234,
-        lastUsed: new Date(Date.now() - 10800000).toISOString(),
-        content: 'You are a debugging assistant...',
-      },
-    ],
-    categories: ['system', 'user', 'shared'],
-    totalUsage: 2760,
+type ViewMode = 'list' | 'create' | 'edit' | 'version' | 'versions'
+
+export default function PromptsPage() {
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [templates, setTemplates] = useState<PromptTemplate[]>([])
+  const [versions, setVersions] = useState<Record<string, PromptVersion[]>>({})
+  const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplate | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Load templates and versions
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [templatesList, categories] = await Promise.all([
+          promptTemplateRepository.list({ limit: 100 }),
+          promptTemplateRepository.getCategories()
+        ])
+
+        setTemplates(templatesList)
+
+        // Load versions for each template
+        const versionsData: Record<string, PromptVersion[]> = {}
+        for (const template of templatesList) {
+          const templateVersions = await promptTemplateRepository.getVersions(template.name)
+          versionsData[template.name] = templateVersions
+        }
+        setVersions(versionsData)
+      } catch (error) {
+        console.error('Failed to load templates:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadData()
+  }, [])
+
+  const handleCreateNew = () => {
+    setSelectedTemplate(null)
+    setViewMode('create')
   }
-}
 
-export default async function PromptsPage() {
-  const data = await getPrompts()
+  const handleEdit = (template: PromptTemplate) => {
+    setSelectedTemplate(template)
+    setViewMode('edit')
+  }
 
-  const allPrompts = [...data.systemPrompts, ...data.userPrompts]
+  const handleDuplicate = async (template: PromptTemplate) => {
+    try {
+      const duplicated = await promptTemplateRepository.create({
+        name: `${template.name} (Copy)`,
+        description: template.description,
+        category: template.category,
+        template: template.template,
+        variables: template.variables,
+        isActive: false, // Don't activate duplicates by default
+        tags: template.tags,
+        usageCount: 0,
+        metadata: template.metadata,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
 
+      // Refresh the list
+      const updatedTemplates = await promptTemplateRepository.list({ limit: 100 })
+      setTemplates(updatedTemplates)
+
+      // Edit the new template
+      setSelectedTemplate(duplicated)
+      setViewMode('edit')
+    } catch (error) {
+      console.error('Failed to duplicate template:', error)
+    }
+  }
+
+  const handleActivate = async (templateId: string) => {
+    try {
+      await promptTemplateRepository.activateVersion(templateId)
+      
+      // Refresh data
+      const updatedTemplates = await promptTemplateRepository.list({ limit: 100 })
+      setTemplates(updatedTemplates)
+
+      // Update versions
+      const template = templates.find(t => t.id === templateId)
+      if (template) {
+        const templateVersions = await promptTemplateRepository.getVersions(template.name)
+        setVersions(prev => ({
+          ...prev,
+          [template.name]: templateVersions
+        }))
+      }
+    } catch (error) {
+      console.error('Failed to activate template:', error)
+    }
+  }
+
+  const handleDeprecate = async (templateId: string) => {
+    try {
+      await promptTemplateRepository.deprecateVersion(templateId)
+      
+      // Refresh data
+      const updatedTemplates = await promptTemplateRepository.list({ limit: 100 })
+      setTemplates(updatedTemplates)
+    } catch (error) {
+      console.error('Failed to deprecate template:', error)
+    }
+  }
+
+  const handleDelete = async (templateId: string) => {
+    if (!confirm('Are you sure you want to delete this template? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      await promptTemplateRepository.delete(templateId)
+      
+      // Refresh the list
+      const updatedTemplates = await promptTemplateRepository.list({ limit: 100 })
+      setTemplates(updatedTemplates)
+    } catch (error) {
+      console.error('Failed to delete template:', error)
+    }
+  }
+
+  const handleViewVersions = (templateName: string) => {
+    console.log('View versions for:', templateName)
+    // TODO: Implement versions view
+  }
+
+  const handleCompare = (templateId1: string, templateId2: string) => {
+    console.log('Compare templates:', templateId1, templateId2)
+    // TODO: Implement comparison view
+  }
+
+  const handleSave = (template: PromptTemplate) => {
+    // Refresh the list and go back to list view
+    const refreshData = async () => {
+      const updatedTemplates = await promptTemplateRepository.list({ limit: 100 })
+      setTemplates(updatedTemplates)
+
+      // Update versions if needed
+      const templateVersions = await promptTemplateRepository.getVersions(template.name)
+      setVersions(prev => ({
+        ...prev,
+        [template.name]: templateVersions
+      }))
+    }
+
+    refreshData()
+    setViewMode('list')
+  }
+
+  const handleCancel = () => {
+    setViewMode('list')
+    setSelectedTemplate(null)
+  }
+
+  if (isLoading) {
+    return (
+      <Panel>
+        <PanelHeader>
+          <PanelTitle>Prompts</PanelTitle>
+        </PanelHeader>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading templates...</p>
+          </div>
+        </div>
+      </Panel>
+    )
+  }
+
+  // Render different views
+  if (viewMode === 'create' || viewMode === 'edit' || viewMode === 'version') {
+    return (
+      <Panel>
+        <TemplateEditor
+          template={selectedTemplate || undefined}
+          onSave={handleSave}
+          onCancel={handleCancel}
+          mode={viewMode}
+        />
+      </Panel>
+    )
+  }
+
+  // Main list view
   return (
     <Panel>
-      <PanelHeader>
-        <PanelTitle>Prompts</PanelTitle>
-        <button className="rounded-md border border-border px-3 py-1 text-sm hover:bg-accent">
-          Create Prompt
-        </button>
-      </PanelHeader>
-      
-      <div className="space-y-4">
-        {/* Statistics */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-md border border-border p-3 text-center">
-            <div className="text-2xl font-bold text-foreground">{allPrompts.length}</div>
-            <div className="text-xs text-muted-foreground">Total Prompts</div>
-          </div>
-          <div className="rounded-md border border-border p-3 text-center">
-            <div className="text-2xl font-bold text-foreground">{data.totalUsage.toLocaleString()}</div>
-            <div className="text-xs text-muted-foreground">Total Usage</div>
-          </div>
-        </div>
-
-        {/* Category Filter */}
-        <div className="flex gap-2">
-          {data.categories.map((category) => (
-            <button
-              key={category}
-              className="text-xs bg-secondary text-secondary-foreground px-3 py-1 rounded hover:bg-secondary/90 capitalize"
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-
-        {/* System Prompts */}
-        <div>
-          <h4 className="font-medium text-foreground mb-3">System Prompts</h4>
-          <div className="space-y-2">
-            {data.systemPrompts.map((prompt) => (
-              <div
-                key={prompt.id}
-                className="rounded-md border border-border p-3 hover:bg-accent/50 transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h5 className="font-medium text-foreground text-sm">{prompt.name}</h5>
-                      <span className="text-xs bg-muted px-2 py-1 rounded text-muted-foreground">
-                        {prompt.category}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {prompt.description}
-                    </p>
-                    <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                      <span>Used {prompt.usage} times</span>
-                      <span>Last: {new Date(prompt.lastUsed).toLocaleTimeString()}</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <button className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded hover:bg-secondary/90">
-                      Edit
-                    </button>
-                    <button className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded hover:bg-primary/90">
-                      Use
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* User Prompts */}
-        <div>
-          <h4 className="font-medium text-foreground mb-3">User Prompts</h4>
-          <div className="space-y-2">
-            {data.userPrompts.map((prompt) => (
-              <div
-                key={prompt.id}
-                className="rounded-md border border-border p-3 hover:bg-accent/50 transition-colors"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h5 className="font-medium text-foreground text-sm">{prompt.name}</h5>
-                      <span className="text-xs bg-muted px-2 py-1 rounded text-muted-foreground">
-                        {prompt.category}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {prompt.description}
-                    </p>
-                    <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                      <span>Used {prompt.usage} times</span>
-                      <span>Last: {new Date(prompt.lastUsed).toLocaleTimeString()}</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <button className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded hover:bg-secondary/90">
-                      Edit
-                    </button>
-                    <button className="text-xs bg-destructive text-destructive-foreground px-2 py-1 rounded hover:bg-destructive/90">
-                      Delete
-                    </button>
-                    <button className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded hover:bg-primary/90">
-                      Use
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {allPrompts.length === 0 && (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">No prompts found</p>
-            <button className="mt-2 text-sm bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90">
-              Create Your First Prompt
-            </button>
-          </div>
-        )}
-      </div>
+      <TemplateList
+        templates={templates}
+        versions={versions}
+        onCreateNew={handleCreateNew}
+        onEdit={handleEdit}
+        onDuplicate={handleDuplicate}
+        onActivate={handleActivate}
+        onDeprecate={handleDeprecate}
+        onDelete={handleDelete}
+        onViewVersions={handleViewVersions}
+        onCompare={handleCompare}
+      />
     </Panel>
   )
 }

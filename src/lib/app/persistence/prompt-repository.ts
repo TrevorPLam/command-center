@@ -5,7 +5,7 @@
  * Provides typed CRUD operations with usage tracking.
  */
 
-import { eq, and, desc, like, count, sql } from 'drizzle-orm'
+import { eq, and, desc, like, count, sql, max } from 'drizzle-orm'
 import { db, withTransaction } from '@/lib/db/client'
 import { promptTemplates, promptRuns } from '@/lib/db/schema'
 import type { 
@@ -15,7 +15,266 @@ import type {
   NewPromptRun 
 } from '@/lib/db/schema'
 
+export type PromptStatus = 'draft' | 'active' | 'deprecated' | 'archived'
+
+export interface PromptVersion {
+  template: PromptTemplate
+  version: string
+  isActive: boolean
+  usageCount: number
+  lastUsedAt: Date | null
+}
+
 export class PromptTemplateRepository {
+  /**
+   * Create a new prompt template with versioning
+   */
+  async createWithVersion(data: NewPromptTemplate, version: string = '1.0.0'): Promise<PromptTemplate> {
+    return await withTransaction(async (tx) => {
+      const database = tx
+      
+      // If this is marked as active, deactivate other versions of the same template name
+      if (data.isActive) {
+        await database
+          .update(promptTemplates)
+          .set({ isActive: false, updatedAt: new Date() })
+          .where(and(
+            eq(promptTemplates.name, data.name),
+            eq(promptTemplates.isActive, true)
+          ))
+      }
+
+      // Add version to metadata
+      const metadata = data.metadata ? JSON.parse(data.metadata) : {}
+      metadata.version = version
+      
+      const [template] = await database
+        .insert(promptTemplates)
+        .values({
+          ...data,
+          metadata: JSON.stringify(metadata)
+        })
+        .returning()
+
+      return template
+    })
+  }
+
+  /**
+   * Create a new version of an existing template
+   */
+  async createVersion(templateId: string, newData: Partial<NewPromptTemplate>, newVersion: string): Promise<PromptTemplate> {
+    return await withTransaction(async (tx) => {
+      const database = tx
+      
+      // Get the original template
+      const original = await database
+        .select()
+        .from(promptTemplates)
+        .where(eq(promptTemplates.id, templateId))
+        .limit(1)
+
+      if (!original[0]) {
+        throw new Error('Template not found')
+      }
+
+      const template = original[0]
+      
+      // If new version is active, deactivate all other versions
+      if (newData.isActive !== false) {
+        await database
+          .update(promptTemplates)
+          .set({ isActive: false, updatedAt: new Date() })
+          .where(and(
+            eq(promptTemplates.name, template.name),
+            eq(promptTemplates.isActive, true)
+          ))
+      }
+
+      // Create new version
+      const metadata = template.metadata ? JSON.parse(template.metadata) : {}
+      metadata.version = newVersion
+      metadata.parentVersion = metadata.version
+      metadata.createdAt = new Date().toISOString()
+
+      const [newTemplate] = await database
+        .insert(promptTemplates)
+        .values({
+          name: template.name,
+          description: newData.description || template.description,
+          category: newData.category || template.category,
+          template: newData.template || template.template,
+          variables: newData.variables || template.variables,
+          isActive: newData.isActive !== false, // Default to true
+          usageCount: 0, // Reset usage count for new version
+          tags: newData.tags || template.tags,
+          metadata: JSON.stringify(metadata),
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning()
+
+      return newTemplate
+    })
+  }
+
+  /**
+   * Get all versions of a template by name
+   */
+  async getVersions(name: string): Promise<PromptVersion[]> {
+    const database = await db
+    const templates = await database
+      .select()
+      .from(promptTemplates)
+      .where(eq(promptTemplates.name, name))
+      .orderBy(desc(promptTemplates.createdAt))
+
+    // Get usage stats for each version
+    const versions: PromptVersion[] = []
+    for (const template of templates) {
+      const metadata = template.metadata ? JSON.parse(template.metadata) : {}
+      const version = metadata.version || '1.0.0'
+      
+      // Get last run date for this template
+      const [lastRun] = await database
+        .select({ createdAt: promptRuns.createdAt })
+        .from(promptRuns)
+        .where(eq(promptRuns.templateId, template.id))
+        .orderBy(desc(promptRuns.createdAt))
+        .limit(1)
+
+      versions.push({
+        template,
+        version,
+        isActive: template.isActive,
+        usageCount: template.usageCount,
+        lastUsedAt: lastRun?.createdAt ? new Date(lastRun.createdAt) : null
+      })
+    }
+
+    return versions
+  }
+
+  /**
+   * Get the active version of a template
+   */
+  async getActiveVersion(name: string): Promise<PromptTemplate | null> {
+    const database = await db
+    const [template] = await database
+      .select()
+      .from(promptTemplates)
+      .where(and(
+        eq(promptTemplates.name, name),
+        eq(promptTemplates.isActive, true)
+      ))
+      .limit(1)
+
+    return template || null
+  }
+
+  /**
+   * Activate a specific version and deactivate others
+   */
+  async activateVersion(templateId: string): Promise<PromptTemplate> {
+    return await withTransaction(async (tx) => {
+      const database = tx
+      
+      // Get the template to activate
+      const [template] = await database
+        .select()
+        .from(promptTemplates)
+        .where(eq(promptTemplates.id, templateId))
+        .limit(1)
+
+      if (!template) {
+        throw new Error('Template not found')
+      }
+
+      // Deactivate all versions of this template name
+      await database
+        .update(promptTemplates)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(eq(promptTemplates.name, template.name))
+
+      // Activate the specified version
+      const [activated] = await database
+        .update(promptTemplates)
+        .set({ isActive: true, updatedAt: new Date() })
+        .where(eq(promptTemplates.id, templateId))
+        .returning()
+
+      return activated
+    })
+  }
+
+  /**
+   * Deprecate a template version
+   */
+  async deprecateVersion(templateId: string): Promise<PromptTemplate> {
+    const database = await db
+    const [template] = await database
+      .update(promptTemplates)
+      .set({ 
+        isActive: false, 
+        updatedAt: new Date(),
+        metadata: sql`json_set(${promptTemplates.metadata}, '$.deprecated', true)`
+      })
+      .where(eq(promptTemplates.id, templateId))
+      .returning()
+
+    return template
+  }
+
+  /**
+   * Compare two versions of a template
+   */
+  async compareVersions(templateId1: string, templateId2: string): Promise<{
+    version1: PromptTemplate
+    version2: PromptTemplate
+    diff: {
+      template: { added: string[]; removed: string[]; changed: string[] }
+      variables: { added: string[]; removed: string[]; changed: string[] }
+      metadata: Record<string, any>
+    }
+  }> {
+    const database = await db
+    const [template1, template2] = await Promise.all([
+      database.select().from(promptTemplates).where(eq(promptTemplates.id, templateId1)).limit(1),
+      database.select().from(promptTemplates).where(eq(promptTemplates.id, templateId2)).limit(1)
+    ])
+
+    if (!template1[0] || !template2[0]) {
+      throw new Error('One or both templates not found')
+    }
+
+    const t1 = template1[0]
+    const t2 = template2[0]
+
+    // Simple diff implementation
+    const diff = {
+      template: this._computeTextDiff(t1.template || '', t2.template || ''),
+      variables: this._computeVariablesDiff(t1.variables || '', t2.variables || ''),
+      metadata: {
+        version1: t1.metadata ? JSON.parse(t1.metadata) : {},
+        version2: t2.metadata ? JSON.parse(t2.metadata) : {}
+      }
+    }
+
+    return {
+      version1: t1,
+      version2: t2,
+      diff
+    }
+  }
+
+  /**
+   * Get version history for a template
+   */
+  async getVersionHistory(name: string, limit: number = 10): Promise<PromptVersion[]> {
+    const versions = await this.getVersions(name)
+    return versions.slice(0, limit)
+  }
+
   /**
    * Create a new prompt template
    */
@@ -246,6 +505,57 @@ export class PromptTemplateRepository {
       )
       .orderBy(desc(promptTemplates.usageCount))
       .limit(limit)
+  }
+
+  /**
+   * Helper method to compute text diff
+   */
+  private _computeTextDiff(text1: string, text2: string): { added: string[]; removed: string[]; changed: string[] } {
+    const lines1 = text1.split('\n')
+    const lines2 = text2.split('\n')
+    
+    const added: string[] = []
+    const removed: string[] = []
+    const changed: string[] = []
+
+    // Simple line-by-line comparison
+    for (let i = 0; i < Math.max(lines1.length, lines2.length); i++) {
+      const line1 = lines1[i] || ''
+      const line2 = lines2[i] || ''
+
+      if (line1 === '' && line2 !== '') {
+        added.push(line2)
+      } else if (line1 !== '' && line2 === '') {
+        removed.push(line1)
+      } else if (line1 !== line2) {
+        changed.push(`"${line1}" → "${line2}"`)
+      }
+    }
+
+    return { added, removed, changed }
+  }
+
+  /**
+   * Helper method to compute variables diff
+   */
+  private _computeVariablesDiff(vars1: string, vars2: string): { added: string[]; removed: string[]; changed: string[] } {
+    try {
+      const variables1 = vars1 ? JSON.parse(vars1) : {}
+      const variables2 = vars2 ? JSON.parse(vars2) : {}
+
+      const keys1 = new Set(Object.keys(variables1))
+      const keys2 = new Set(Object.keys(variables2))
+
+      const added = Array.from(keys2).filter(key => !keys1.has(key))
+      const removed = Array.from(keys1).filter(key => !keys2.has(key))
+      const changed = Array.from(keys1).filter(key => 
+        keys2.has(key) && JSON.stringify(variables1[key]) !== JSON.stringify(variables2[key])
+      )
+
+      return { added, removed, changed }
+    } catch (error) {
+      return { added: [], removed: [], changed: ['Failed to parse variables JSON'] }
+    }
   }
 }
 
