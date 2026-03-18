@@ -135,10 +135,12 @@ export class IngestionService {
         const file = files[i]
         
         try {
-          // Check for duplicates by checksum
+          // Get file as buffer for binary files
           const buffer = await file.arrayBuffer()
-          const content = new TextDecoder().decode(buffer)
-          const checksum = this.calculateChecksum(content)
+          const uint8Array = new Uint8Array(buffer)
+          
+          // Calculate checksum based on file content
+          const checksum = this.calculateChecksum(uint8Array)
           
           const existing = await this.findDocumentByChecksum(checksum)
           if (existing) {
@@ -149,8 +151,8 @@ export class IngestionService {
           // Detect content type
           const contentType = this.detectContentType(file.name, file.type)
           
-          // Parse document (basic implementation for now)
-          const parsed = await this.parseDocument(content, contentType)
+          // Parse document (handle both text and binary files)
+          const parsed = await this.parseDocument(uint8Array, contentType, file.name)
           
           // Normalize document
           const normalized = await DocumentNormalizer.normalize(
@@ -203,20 +205,30 @@ export class IngestionService {
    * Parse document based on content type
    */
   private static async parseDocument(
-    content: string,
-    contentType: DocumentContentType
+    content: Uint8Array,
+    contentType: DocumentContentType,
+    filename: string
   ): Promise<any> {
     // Use parser registry for consistent parsing
     const { ParserRegistry } = await import('@/lib/app/rag/parsers')
-    return await ParserRegistry.parse(content, contentType)
+    
+    // For binary files (PDF, DOCX), pass the buffer directly
+    if (contentType === 'application/pdf' || 
+        contentType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      return await ParserRegistry.parse(content, contentType)
+    }
+    
+    // For text files, decode to string first
+    const textContent = new TextDecoder().decode(content)
+    return await ParserRegistry.parse(textContent, contentType)
   }
 
   /**
    * Helper methods
    */
-  private static calculateChecksum(content: string): string {
+  private static calculateChecksum(content: Uint8Array): string {
     const crypto = require('crypto')
-    return crypto.createHash('sha256').update(content, 'utf8').digest('hex')
+    return crypto.createHash('sha256').update(content).digest('hex')
   }
 
   private static detectContentType(filename: string, mimeType: string): DocumentContentType {
@@ -234,6 +246,9 @@ export class IngestionService {
       'json': 'application/json',
       'html': 'text/html',
       'htm': 'text/html',
+      'pdf': 'application/pdf',
+      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'doc': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'js': 'text/javascript',
       'jsx': 'text/javascript',
       'ts': 'text/typescript',

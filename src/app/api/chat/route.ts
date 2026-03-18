@@ -9,6 +9,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createOllamaAdapter } from '@/lib/app/runtime/ollama-adapter'
 import { chatStreamService, initializeChatStreamService } from '@/lib/app/services/chat-stream-service'
+import { ragAnswerService } from '@/lib/app/services/rag-answer-service'
 import { env } from '@/lib/config/env'
 
 // Validation schema
@@ -19,7 +20,16 @@ const chatRequestSchema = z.object({
   systemPrompt: z.string().max(2000).optional(),
   temperature: z.number().min(0).max(2).optional(),
   maxTokens: z.number().int().min(1).max(4000).optional(),
-  stream: z.boolean().default(true)
+  stream: z.boolean().default(true),
+  rag: z.object({
+    enabled: z.boolean().default(false),
+    searchType: z.enum(['vector', 'fulltext', 'hybrid']).default('hybrid'),
+    topK: z.number().int().min(1).max(50).default(10),
+    similarityThreshold: z.number().min(0).max(1).optional(),
+    includeCitations: z.boolean().default(true),
+    citationFormat: z.enum(['apa', 'mla', 'chicago', 'harvard', 'vancouver', 'ieee']).default('apa'),
+    minEvidenceChunks: z.number().int().min(1).max(10).default(2)
+  }).optional()
 })
 
 // Initialize chat stream service if not already done
@@ -50,6 +60,33 @@ export async function POST(request: NextRequest) {
     // Get abort signal from request
     const signal = request.signal
 
+    // Handle RAG if enabled
+    let ragContext = ''
+    let ragCitations: any[] = []
+    let ragMetadata: any = null
+
+    if (validated.rag?.enabled) {
+      try {
+        const ragResult = await ragAnswerService.generateAnswer({
+          query: validated.message,
+          conversationId: validated.conversationId,
+          config: validated.rag
+        })
+
+        if (ragResult.success) {
+          ragContext = ragResult.context
+          ragCitations = ragResult.citations
+          ragMetadata = ragResult.metadata
+        } else {
+          // Send RAG failure event but continue with regular chat
+          console.warn('RAG failed:', ragResult.error)
+        }
+      } catch (error) {
+        console.warn('RAG error:', error)
+        // Continue with regular chat if RAG fails
+      }
+    }
+
     // Determine if this is a new conversation or continuation
     const isNewConversation = !validated.conversationId
 
@@ -60,7 +97,7 @@ export async function POST(request: NextRequest) {
         {
           message: validated.message,
           model: validated.model,
-          systemPrompt: validated.systemPrompt,
+          systemPrompt: ragContext ? `${validated.systemPrompt || ''}\n\n${ragContext}` : validated.systemPrompt,
           temperature: validated.temperature,
           maxTokens: validated.maxTokens,
           stream: validated.stream
@@ -73,11 +110,11 @@ export async function POST(request: NextRequest) {
     } else {
       // Continue existing conversation
       streamResponse = await chatStreamService.continueConversationStream(
-        validated.conversationId,
+        validated.conversationId!,
         {
           message: validated.message,
           model: validated.model,
-          systemPrompt: validated.systemPrompt,
+          systemPrompt: ragContext ? `${validated.systemPrompt || ''}\n\n${ragContext}` : validated.systemPrompt,
           temperature: validated.temperature,
           maxTokens: validated.maxTokens,
           stream: validated.stream
@@ -99,7 +136,14 @@ export async function POST(request: NextRequest) {
             type: 'connected',
             conversationId: streamResponse.conversationId,
             messageId: streamResponse.messageId,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            ...(ragMetadata && {
+              rag: {
+                enabled: true,
+                metadata: ragMetadata,
+                citations: ragCitations
+              }
+            })
           }
           controller.enqueue(encoder.encode(eventToSSE(connectEvent)))
 

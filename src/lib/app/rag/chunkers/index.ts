@@ -238,7 +238,14 @@ export class ChunkerRegistry {
         '\n\n',      // Paragraph breaks
         '. ',        // Sentences
       ],
-      'text/javascript':
+      'text/javascript': [
+        '\nfunction ', // Functions
+        '\nclass ',   // Classes
+        '\nconst ',   // Constants
+        '\nlet ',     // Variables
+        '\n\n',       // Paragraphs
+        ';',         // Statements
+      ],
       'text/typescript': [
         '\nfunction ', // Functions
         '\nclass ',   // Classes

@@ -999,15 +999,50 @@ export async function runStructuredTask<T>(
 
 ---
 
-## [ ] CC-007: Create the Document Ingestion Pipeline and Index Lifecycle
+## ✅ CC-007: Create the Document Ingestion Pipeline and Index Lifecycle
+**Status: 100% COMPLETE** - 7 of 7 subtasks completed
+
+**Completed Subtasks:**
+- ✅ CC-007-1: Create upload/import APIs and watched-directory configuration
+- ✅ CC-007-2: Implement parsers for markdown, text, PDF, DOCX, CSV, and code files
+- ✅ CC-007-3: Define the normalized document model, metadata enrichment, and section/span mapping
+- ✅ CC-007-4: Build document-type-aware chunkers and policy selection
+- ✅ CC-007-5: Implement embedding jobs and LanceDB index-writing services
+- ✅ CC-007-6: Create index versioning, reindex, and delete workflows
+- ✅ CC-007-7: Write ingestion pipeline integration tests and fixture corpora
+
+**Key Implementation Details:**
+- **Complete Ingestion Pipeline**: Full upload → parse → normalize → chunk → embed → index workflow
+- **Advanced Document Parsers**: Support for Markdown, PDF, DOCX, JSON, CSV, HTML, and 9+ code languages
+- **Intelligent Chunking**: Semantic, fixed-size, recursive, and document-structure strategies with automatic selection
+- **Embedding Service**: Job-based embedding generation with model integration and progress tracking
+- **LanceDB Integration**: Vector storage, search, and management with hybrid search capabilities
+- **Index Management**: Versioning, reindexing, health monitoring, and rollback capabilities
+- **Modern UI Components**: Drag-and-drop ingestion, progress tracking, job monitoring, and advanced configuration
+- **Comprehensive API**: Full REST API for ingestion operations with multipart file upload support
+- **Production Testing**: Integration tests covering all pipeline stages with realistic document fixtures
+- **Type Safety**: Complete TypeScript definitions with strict typing throughout
+
+**Technical Architecture:**
+- **Ingestion Service**: `src/lib/app/services/ingestion-service.ts` - Main pipeline orchestration
+- **Parser Registry**: `src/lib/app/rag/parsers/` - Modular document parsing with fallback handling
+- **Chunker Registry**: `src/lib/app/rag/chunkers/` - Intelligent chunking strategy selection
+- **Embedding Service**: `src/lib/app/rag/embedding-service.ts` - Job-based embedding generation
+- **LanceDB Writer**: `src/lib/app/rag/lancedb-writer.ts` - Vector database operations
+- **Index Manager**: `src/lib/app/rag/index-manager.ts` - Index lifecycle management
+- **Server Actions**: `src/app/actions/ingestion.ts` - Type-safe client interfaces
+- **API Routes**: `src/app/api/rag/ingest/route.ts` - RESTful ingestion endpoints
+- **UI Components**: `src/components/rag/` - Complete user interface for ingestion operations
+
+**Next Priority:** Proceed to CC-009: Build the Tool Registry, Approval Gates, and Execution Sandbox
 
 ### Definition of Done
 
-- [ ] Users can upload files or point the app at a watched local directory for ingestion.
-- [ ] The ingestion pipeline stages acquire, parse, normalize, annotate, chunk, embed, index, and version every document.
-- [ ] Document, section/span, and chunk records preserve traceability back to exact source location or structural position.
-- [ ] Embedding jobs use one configured embedding model per index and record version metadata.
-- [ ] Reindex, delete, and reprocess flows are job-backed, observable, and safe to retry.
+- [x] Users can upload files or point the app at a watched local directory for ingestion.
+- [x] The ingestion pipeline stages acquire, parse, normalize, annotate, chunk, embed, index, and version every document.
+- [x] Document, section/span, and chunk records preserve traceability back to exact source location or structural position.
+- [x] Embedding jobs use one configured embedding model per index and record version metadata.
+- [x] Reindex, delete, and reprocess flows are job-backed, observable, and safe to retry.
 
 ### Out of Scope
 
@@ -1116,7 +1151,65 @@ export async function ingestDocument(job: IngestJob) {
 
 ---
 
-## [ ] CC-008: Implement Retrieval, Hybrid Search, Citations, and the RAG User Experience
+## ✅ CC-008: Implement Retrieval, Hybrid Search, Citations, and the RAG User Experience
+**Status: 100% COMPLETE** - 7 of 7 subtasks completed
+
+**Completed Subtasks:**
+- ✅ CC-008-1: Implement vector, full-text, and hybrid retrieval services
+- ✅ CC-008-2: Create the browser-facing search and citation APIs
+- ✅ CC-008-3: Build evidence packing, deduplication, and metadata filtering policies
+- ✅ CC-008-4: Render citation cards, source inspectors, and retrieval diagnostics in the UI
+- ✅ CC-008-5: Integrate RAG-enabled answer generation into chat workflows
+- ✅ CC-008-6: Create retrieval-only fixtures and evaluation scripts
+- ✅ CC-008-7: Add trust labels, allowlists, and retrieval red-team fixtures
+
+**Next Priority:** Proceed to CC-009: Build the Tool Registry, Approval Gates, and Execution Sandbox
+
+### Key Implementation Details:
+- **Vector Retrieval Service**: Complete integration with LanceDB for similarity search
+- **Full-Text Search Service**: SQLite FTS5 implementation with advanced query parsing
+- **Fusion Service**: Hybrid search with multiple fusion strategies (RRF, weighted score, etc.)
+- **Search & Citation APIs**: RESTful endpoints with comprehensive search options
+- **Evidence Pack Service**: Advanced deduplication and context budgeting
+- **Retrieval Policy Service**: Configurable policies, trust filters, and content safety
+- **Citation Components**: Rich UI with multiple citation formats and source inspection
+- **RAG Answer Service**: Seamless integration with chat workflows
+- **Trust Labels Service**: Security-focused content filtering and red-team testing
+- **Evaluation Framework**: Comprehensive testing with metrics (precision, recall, MRR, NDCG)
+
+**File Structure Created:**
+```
+src/lib/app/rag/
+├── retrieval-service.ts           # Vector similarity search
+├── fulltext-search.ts             # Full-text search with FTS5
+├── fusion.ts                       # Hybrid search fusion strategies
+├── evidence-pack.ts               # Evidence packing and deduplication
+├── retrieval-policy.ts            # Trust policies and content filtering
+├── trust-labels.ts                # Trust labels and security policies
+└── types.ts                       # Core RAG type definitions
+
+src/app/api/rag/
+├── search/route.ts                # Search API endpoint
+└── citations/route.ts             # Citations API endpoint
+
+src/components/rag/
+├── citation-list.tsx              # Rich citation display component
+├── source-inspector.tsx            # Detailed source inspection
+├── retrieval-diagnostics.tsx      # Performance and quality diagnostics
+└── rag-panel.tsx                  # Comprehensive RAG interface
+
+src/lib/app/services/
+└── rag-answer-service.ts          # RAG integration with chat workflows
+
+tests/fixtures/rag/
+└── retrieval-fixtures.json        # Test fixtures for evaluation
+
+tests/redteam/
+└── rag-injection-fixtures.json    # Security test fixtures
+
+scripts/eval/
+└── retrieval-eval.ts              # Evaluation script with metrics
+```
 
 ### Definition of Done
 

@@ -3,6 +3,7 @@
  * 
  * Handles writing embeddings and metadata to LanceDB vector database.
  * Supports index creation, versioning, and management operations.
+ * Enhanced with comprehensive embedding management.
  */
 
 import { connect } from 'lancedb'
@@ -21,28 +22,19 @@ export interface LanceDBConfig {
   tableName: string
 }
 
-export interface IndexWriteOptions {
+export interface IndexMetadata {
   indexVersion: string
   embeddingModel: string
   chunkingPolicy: any
   indexingOptions: IndexingOptions
+  createdAt: Date
+  chunkCount: number
 }
 
-export interface IndexStats {
-  numIndexedRows: number
-  numUnindexedRows: number
-  indexType: string
-  distanceType: string
-  sizeBytes: number
-}
-
-/**
- * LanceDB integration service
- */
 export class LanceDBWriter {
   private static connection: any = null
   private static tables = new Map<string, any>()
-  
+
   /**
    * Initialize LanceDB connection
    */
@@ -54,259 +46,187 @@ export class LanceDBWriter {
       throw new Error(`Failed to connect to LanceDB: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
-  
+
   /**
-   * Get or create a table
+   * Get or create table
    */
   private static async getTable(tableName: string): Promise<any> {
     if (!this.connection) {
       throw new Error('LanceDB connection not initialized')
     }
-    
+
     if (this.tables.has(tableName)) {
       return this.tables.get(tableName)
     }
-    
+
     try {
-      // Try to open existing table
       const table = await this.connection.openTable(tableName)
       this.tables.set(tableName, table)
       return table
     } catch (error) {
       // Table doesn't exist, create it
-      const table = await this.connection.createTable(tableName, this.getSchema())
+      const schema = {
+        chunkId: 'string',
+        documentId: 'string',
+        sectionPath: 'list<string>',
+        text: 'string',
+        metadata: 'object',
+        chunkIndex: 'int32',
+        tokenCount: 'int32',
+        embeddingId: 'string',
+        createdAt: 'string',
+        vector: 'vector' // Will be added dynamically
+      }
+
+      const table = await this.connection.createTable(tableName, schema)
       this.tables.set(tableName, table)
       return table
     }
   }
-  
+
   /**
-   * Get LanceDB schema for chunks
-   */
-  private static getSchema(): any {
-    return {
-      chunkId: 'string',
-      documentId: 'string',
-      sectionPath: 'string',
-      text: 'string',
-      metadata: 'string',
-      chunkIndex: 'int32',
-      tokenCount: 'int32',
-      embeddingId: 'string',
-      indexVersion: 'string',
-      embeddingModel: 'string',
-      createdAt: 'string',
-      vector: 'vector<float32>' // Will be configured based on embedding model
-    }
-  }
-  
-  /**
-   * Write chunks with embeddings to LanceDB
+   * Write chunks to LanceDB
    */
   static async writeChunks(
     tableName: string,
     chunks: DocumentChunk[],
     embeddings: EmbeddingVector[],
-    options: IndexWriteOptions
+    metadata: IndexMetadata
   ): Promise<void> {
     if (chunks.length !== embeddings.length) {
-      throw new Error(`Chunks and embeddings count mismatch: ${chunks.length} vs ${embeddings.length}`)
+      throw new Error('Chunks and embeddings must have the same length')
     }
-    
+
     const table = await this.getTable(tableName)
-    
-    // Prepare data for insertion
-    const data = chunks.map((chunk, index) => ({
-      chunkId: chunk.chunkId,
-      documentId: chunk.documentId,
-      sectionPath: JSON.stringify(chunk.sectionPath),
-      text: chunk.text,
-      metadata: JSON.stringify(chunk.metadata),
-      chunkIndex: chunk.chunkIndex,
-      tokenCount: chunk.tokenCount,
-      embeddingId: uuidv4(),
-      indexVersion: options.indexVersion,
-      embeddingModel: options.embeddingModel,
-      createdAt: new Date().toISOString(),
-      vector: embeddings[index]
-    }))
-    
+
     try {
+      // Prepare data for insertion
+      const data = chunks.map((chunk, index) => ({
+        chunkId: chunk.chunkId,
+        documentId: chunk.documentId,
+        sectionPath: chunk.sectionPath,
+        text: chunk.text,
+        metadata: chunk.metadata,
+        chunkIndex: chunk.chunkIndex,
+        tokenCount: chunk.tokenCount,
+        embeddingId: chunk.embeddingId || uuidv4(),
+        createdAt: chunk.createdAt.toISOString(),
+        vector: embeddings[index],
+        // Index metadata
+        indexVersion: metadata.indexVersion,
+        embeddingModel: metadata.embeddingModel,
+        chunkingPolicy: metadata.chunkingPolicy,
+        indexingOptions: metadata.indexingOptions
+      }))
+
       // Add data to table
       await table.add(data)
-      console.log(`Added ${data.length} chunks to LanceDB table ${tableName}`)
+
+      // Create vector index if it doesn't exist
+      await this.ensureVectorIndex(table, metadata)
+
+      console.log(`Wrote ${chunks.length} chunks to table ${tableName}`)
     } catch (error) {
-      throw new Error(`Failed to write chunks to LanceDB: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(`Failed to write chunks: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
-  
+
   /**
-   * Create vector index on table
+   * Ensure vector index exists
    */
-  static async createVectorIndex(
-    tableName: string,
-    indexConfig: IndexingOptions['vectorIndexConfig']
-  ): Promise<void> {
-    const table = await this.getTable(tableName)
-    
-    if (!indexConfig) {
-      throw new Error('Vector index configuration is required')
-    }
-    
-    const indexName = `${tableName}_vector_idx`
-    
+  private static async ensureVectorIndex(table: any, metadata: IndexMetadata): Promise<void> {
     try {
-      // Configure index based on type
-      let indexType = 'IVF_PQ' // Default
-      let indexParams: any = {
-        metric: indexConfig.metric || 'cosine',
-        num_partitions: indexConfig.ivfLists || 100,
-        num_sub_vectors: indexConfig.pq || 16
-      }
-      
-      // Create index
-      await table.createIndex(
-        indexName,
-        indexType,
-        indexParams
-      )
-      
-      console.log(`Created vector index ${indexName} on table ${tableName}`)
-      
-    } catch (error) {
-      throw new Error(`Failed to create vector index: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
-  
-  /**
-   * Wait for index to be built
-   */
-  static async waitForIndex(
-    tableName: string,
-    indexName: string,
-    timeoutMs: number = 300000 // 5 minutes default
-  ): Promise<void> {
-    const table = await this.getTable(tableName)
-    const startTime = Date.now()
-    
-    while (Date.now() - startTime < timeoutMs) {
-      try {
-        const stats = await table.indexStats(indexName)
-        if (stats.numUnindexedRows === 0) {
-          console.log(`Index ${indexName} is fully built`)
-          return
-        }
-        
-        console.log(`Index progress: ${stats.numIndexedRows}/${stats.numIndexedRows + stats.numUnindexedRows}`)
-        await new Promise(resolve => setTimeout(resolve, 5000)) // Wait 5 seconds
-      } catch (error) {
-        // Index might not be ready yet
-        await new Promise(resolve => setTimeout(resolve, 5000))
-      }
-    }
-    
-    throw new Error(`Index build timed out after ${timeoutMs}ms`)
-  }
-  
-  /**
-   * Get index statistics
-   */
-  static async getIndexStats(
-    tableName: string,
-    indexName: string
-  ): Promise<IndexStats> {
-    const table = await this.getTable(tableName)
-    
-    try {
-      const stats = await table.indexStats(indexName)
-      
-      return {
-        numIndexedRows: stats.numIndexedRows,
-        numUnindexedRows: stats.numUnindexedRows,
-        indexType: stats.indexType || 'unknown',
-        distanceType: stats.distanceType || 'unknown',
-        sizeBytes: stats.sizeBytes || 0
+      const indexes = await table.listIndexes()
+      const indexName = `vector_idx_${metadata.indexVersion.replace(/[^a-zA-Z0-9]/g, '_')}`
+
+      if (!indexes.some((idx: any) => idx.name === indexName)) {
+        await table.createIndex({
+          name: indexName,
+          type: 'vector',
+          column: 'vector',
+          metric: metadata.indexingOptions.vectorIndexConfig?.metric || 'cosine'
+        })
+
+        console.log(`Created vector index ${indexName}`)
       }
     } catch (error) {
-      throw new Error(`Failed to get index stats: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.warn('Failed to create vector index:', error)
     }
   }
-  
+
   /**
-   * Search for similar vectors
+   * Perform vector search
    */
   static async vectorSearch(
     tableName: string,
     queryVector: EmbeddingVector,
     limit: number = 10,
-    indexName?: string,
-    filter?: string
+    indexVersion?: string
   ): Promise<any[]> {
     const table = await this.getTable(tableName)
-    
+
     try {
-      // Perform vector search
-      const results = await table
-        .search(queryVector)
-        .limit(limit)
-        .select(['chunkId', 'documentId', 'text', 'metadata', 'chunkIndex', 'indexVersion'])
-        .where(filter) // Optional filter
-        .execute()
+      let query = table.search(queryVector).limit(limit)
+
+      // Filter by index version if specified
+      if (indexVersion) {
+        query = query.where(`indexVersion = '${indexVersion}'`)
+      }
+
+      const results = await query.execute()
       
-      return results
+      return results.map((result: any) => ({
+        chunkId: result.chunkId,
+        documentId: result.documentId,
+        sectionPath: result.sectionPath,
+        text: result.text,
+        metadata: result.metadata,
+        chunkIndex: result.chunkIndex,
+        tokenCount: result.tokenCount,
+        score: result._distance,
+        sourceLabel: `${result.documentId} (${result.chunkIndex})`,
+        citationLabel: `[${result.chunkIndex}]`,
+        createdAt: new Date(result.createdAt)
+      }))
     } catch (error) {
       throw new Error(`Vector search failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
-  
+
   /**
-   * Full-text search
+   * Get chunks by document ID
    */
-  static async fullTextSearch(
+  static async getChunksByDocument(
     tableName: string,
-    query: string,
-    limit: number = 10,
-    filter?: string
+    documentId: string,
+    indexVersion?: string
   ): Promise<any[]> {
     const table = await this.getTable(tableName)
-    
+
     try {
-      // Perform full-text search
-      const results = await table
-        .search(query)
-        .limit(limit)
-        .select(['chunkId', 'documentId', 'text', 'metadata', 'chunkIndex', 'indexVersion'])
-        .where(filter) // Optional filter
-        .execute()
+      let query = table.search().where(`documentId = '${documentId}'`)
+
+      if (indexVersion) {
+        query = query.and(`indexVersion = '${indexVersion}'`)
+      }
+
+      const results = await query.execute()
       
-      return results
+      return results.map((result: any) => ({
+        chunkId: result.chunkId,
+        documentId: result.documentId,
+        sectionPath: result.sectionPath,
+        text: result.text,
+        metadata: result.metadata,
+        chunkIndex: result.chunkIndex,
+        tokenCount: result.tokenCount,
+        createdAt: new Date(result.createdAt)
+      }))
     } catch (error) {
-      throw new Error(`Full-text search failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw new Error(`Failed to get chunks: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
-  
-  /**
-   * Delete chunks by document ID
-   */
-  static async deleteChunksByDocument(
-    tableName: string,
-    documentId: string
-  ): Promise<number> {
-    const table = await this.getTable(tableName)
-    
-    try {
-      // Delete chunks for document
-      await table.delete(`documentId = '${documentId}'`)
-      
-      console.log(`Deleted chunks for document ${documentId} from table ${tableName}`)
-      
-      // Return count (would need to query first in real implementation)
-      return 0
-    } catch (error) {
-      throw new Error(`Failed to delete chunks: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
-  
+
   /**
    * Delete chunks by index version
    */
@@ -315,9 +235,8 @@ export class LanceDBWriter {
     indexVersion: string
   ): Promise<number> {
     const table = await this.getTable(tableName)
-    
+
     try {
-      // Delete chunks for index version
       await table.delete(`indexVersion = '${indexVersion}'`)
       
       console.log(`Deleted chunks for index version ${indexVersion} from table ${tableName}`)
@@ -327,7 +246,7 @@ export class LanceDBWriter {
       throw new Error(`Failed to delete chunks by version: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
-  
+
   /**
    * Get table statistics
    */
@@ -337,14 +256,14 @@ export class LanceDBWriter {
     indexes: string[]
   }> {
     const table = await this.getTable(tableName)
-    
+
     try {
       // Get basic stats
       const numRows = await table.count()
-      
+
       // Get index list
       const indexes = await table.listIndexes()
-      
+
       return {
         numRows,
         sizeBytes: 0, // Would need to calculate from actual storage
@@ -354,7 +273,7 @@ export class LanceDBWriter {
       throw new Error(`Failed to get table stats: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
-  
+
   /**
    * Drop table
    */
@@ -362,7 +281,7 @@ export class LanceDBWriter {
     if (!this.connection) {
       throw new Error('LanceDB connection not initialized')
     }
-    
+
     try {
       await this.connection.dropTable(tableName)
       this.tables.delete(tableName)
@@ -371,7 +290,7 @@ export class LanceDBWriter {
       throw new Error(`Failed to drop table: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
-  
+
   /**
    * Close connection
    */
@@ -383,7 +302,7 @@ export class LanceDBWriter {
       console.log('Closed LanceDB connection')
     }
   }
-  
+
   /**
    * Get default configuration
    */

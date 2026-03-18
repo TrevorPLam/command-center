@@ -1,0 +1,191 @@
+[
+  {
+    "id": "fixture_001",
+    "query": "What is machine learning?",
+    "expected_chunks": 3,
+    "search_type": "hybrid",
+    "top_k": 10,
+    "similarity_threshold": 0.7,
+    "expected_results": [
+      {
+        "chunk_id": "ml_intro_001",
+        "document_id": "ml_basics_001",
+        "score_range": [0.8, 1.0],
+        "keywords": ["machine learning", "artificial intelligence", "algorithms", "data"]
+      },
+      {
+        "chunk_id": "ml_intro_002", 
+        "document_id": "ml_basics_001",
+        "score_range": [0.7, 0.9],
+        "keywords": ["supervised learning", "unsupervised learning", "training"]
+      },
+      {
+        "chunk_id": "ml_concepts_001",
+        "document_id": "ml_concepts_001", 
+        "score_range": [0.6, 0.8],
+        "keywords": ["neural networks", "deep learning", "models"]
+      }
+    ],
+    "metadata": {
+      "category": "conceptual",
+      "difficulty": "beginner",
+      "domain": "machine_learning"
+    }
+  },
+  {
+    "id": "fixture_002",
+    "query": "How to implement neural networks in Python?",
+    "expected_chunks": 4,
+    "search_type": "hybrid",
+    "top_k": 15,
+    "similarity_threshold": 0.6,
+    "expected_results": [
+      {
+        "chunk_id": "python_nn_001",
+        "document_id": "python_ml_guide_001",
+        "score_range": [0.8, 1.0],
+        "keywords": ["python", "neural networks", "tensorflow", "pytorch"]
+      },
+      {
+        "chunk_id": "python_nn_002",
+        "document_id": "python_ml_guide_001", 
+        "score_range": [0.7, 0.9],
+        "keywords": ["implementation", "code examples", "layers"]
+      },
+      {
+        "chunk_id": "deep_learning_001",
+        "document_id": "deep_learning_tutorial_001",
+        "score_range": [0.6, 0.8],
+        "keywords": ["deep learning", "frameworks", "python"]
+      },
+      {
+        "chunk_id": "ml_basics_003",
+        "document_id": "ml_basics_001",
+        "score_range": [0.5, 0.7],
+        "keywords": ["python", "machine learning", "libraries"]
+      }
+    ],
+    "metadata": {
+      "category": "implementation",
+      "difficulty": "intermediate", 
+      "domain": "machine_learning"
+    }
+  },
+  {
+    "id": "fixture_003",
+    "query": "data preprocessing techniques for machine learning",
+    "expected_chunks": 5,
+    "search_type": "fulltext",
+    "top_k": 20,
+    "similarity_threshold": 0.5,
+    "expected_results": [
+      {
+        "chunk_id": "preprocessing_001",
+        "document_id": "data_engineering_001",
+        "score_range": [0.7, 1.0],
+        "keywords": ["data preprocessing", "cleaning", "normalization"]
+      },
+      {
+        "chunk_id": "feature_engineering_001",
+        "document_id": "feature_engineering_001",
+        "score_range": [0.6, 0.9],
+        "keywords": ["feature engineering", "selection", "transformation"]
+      },
+      {
+        "chunk_id": "data_quality_001",
+        "document_id": "data_quality_001",
+        "score_range": [0.5, 0.8],
+        "keywords": ["data quality", "validation", "outliers"]
+      },
+      {
+        "chunk_id": "ml_pipeline_001",
+        "document_id": "ml_pipeline_001",
+        "score_range": [0.4, 0.7],
+        "keywords": ["pipeline", "preprocessing", "workflow"]
+      },
+      {
+        "chunk_id": "scaling_001",
+        "document_id": "scaling_techniques_001",
+        "score_range": [0.4, 0.6],
+        "keywords": ["scaling", "standardization", "normalization"]
+      }
+    ],
+    "metadata": {
+      "category": "preprocessing",
+      "difficulty": "intermediate",
+      "domain": "data_science"
+    }
+  },
+  {
+    "id": "fixture_004",
+    "query": "quantum computing applications in cryptography",
+    "expected_chunks": 3,
+    "search_type": "vector",
+    "top_k": 8,
+    "similarity_threshold": 0.8,
+    "expected_results": [
+      {
+        "chunk_id": "quantum_crypto_001",
+        "document_id": "quantum_computing_001",
+        "score_range": [0.9, 1.0],
+        "keywords": ["quantum computing", "cryptography", "encryption"]
+      },
+      {
+        "chunk_id": "quantum_algorithms_001",
+        "document_id": "quantum_algorithms_001",
+        "score_range": [0.7, 0.9],
+        "keywords": ["quantum algorithms", "shor's algorithm", "security"]
+      },
+      {
+        "chunk_id": "post_quantum_001",
+        "document_id": "post_quantum_crypto_001",
+        "score_range": [0.6, 0.8],
+        "keywords": ["post-quantum cryptography", "quantum resistant"]
+      }
+    ],
+    "metadata": {
+      "category": "advanced",
+      "difficulty": "expert",
+      "domain": "quantum_computing"
+    }
+  },
+  {
+    "id": "fixture_005",
+    "query": "best practices for software testing",
+    "expected_chunks": 4,
+    "search_type": "hybrid",
+    "top_k": 12,
+    "similarity_threshold": 0.6,
+    "expected_results": [
+      {
+        "chunk_id": "testing_basics_001",
+        "document_id": "software_testing_001",
+        "score_range": [0.8, 1.0],
+        "keywords": ["software testing", "quality assurance", "best practices"]
+      },
+      {
+        "chunk_id": "unit_testing_001",
+        "document_id": "unit_testing_guide_001",
+        "score_range": [0.7, 0.9],
+        "keywords": ["unit testing", "test cases", "coverage"]
+      },
+      {
+        "chunk_id": "integration_testing_001",
+        "document_id": "integration_testing_001",
+        "score_range": [0.6, 0.8],
+        "keywords": ["integration testing", "system testing", "end-to-end"]
+      },
+      {
+        "chunk_id": "testing_strategies_001",
+        "document_id": "testing_strategies_001",
+        "score_range": [0.5, 0.7],
+        "keywords": ["testing strategies", "automation", "continuous integration"]
+      }
+    ],
+    "metadata": {
+      "category": "engineering",
+      "difficulty": "intermediate",
+      "domain": "software_engineering"
+    }
+  }
+]

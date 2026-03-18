@@ -333,6 +333,10 @@ export class MetadataEnricher {
       total_section_chars: document.sections.reduce((sum, section) => sum + section.text.length, 0)
     }
 
+    // Add advanced content analysis
+    const contentAnalysis = this.analyzeContentComplexity(document)
+    Object.assign(enriched.metadata, contentAnalysis)
+
     // Add section-specific metadata
     enriched.sections = document.sections.map((section, index) => ({
       ...section,
@@ -340,7 +344,9 @@ export class MetadataEnricher {
         ...section.metadata,
         section_index: index,
         char_count: section.text.length,
-        word_count: section.text.split(/\s+/).filter(w => w.length > 0).length
+        word_count: section.text.split(/\s+/).filter(w => w.length > 0).length,
+        readability_score: this.calculateReadabilityScore(section.text),
+        density_score: this.calculateContentDensity(section.text)
       }
     }))
 
@@ -359,14 +365,416 @@ export class MetadataEnricher {
       .slice(0, 5)
       .map(section => section.text.slice(0, 200) + (section.text.length > 200 ? '...' : ''))
 
+    // Advanced keyword extraction with TF-IDF-like scoring
+    const keywords = this.extractAdvancedKeywords(document)
+    
+    // Generate comprehensive tags
+    const tags = this.generateAdvancedTags(document)
+    
+    // Add semantic metadata
+    const semanticMetadata = this.extractSemanticMetadata(document)
+
     enriched.metadata = {
       ...document.metadata,
       search_snippets: snippets,
-      keywords: this.extractKeywords(document),
-      tags: this.generateTags(document)
+      keywords: keywords.topKeywords,
+      keyword_scores: keywords.keywordScores,
+      tags,
+      semantic_categories: semanticMetadata.categories,
+      entity_mentions: semanticMetadata.entities,
+      topic_modeling: semanticMetadata.topics,
+      content_summary: this.generateContentSummary(document),
+      question_potential: this.assessQuestionPotential(document)
     }
 
     return enriched
+  }
+
+  /**
+   * Analyze content complexity and quality metrics
+   */
+  private static analyzeContentComplexity(document: NormalizedDocument): Record<string, unknown> {
+    const allText = document.sections.map(s => s.text).join(' ')
+    const words = allText.split(/\s+/).filter(w => w.length > 0)
+    const sentences = allText.split(/[.!?]+/).filter(s => s.trim().length > 0)
+    
+    // Vocabulary richness (unique words / total words)
+    const uniqueWords = new Set(words.map(w => w.toLowerCase()))
+    const vocabularyRichness = words.length > 0 ? uniqueWords.size / words.length : 0
+    
+    // Average sentence length
+    const avgSentenceLength = sentences.length > 0 ? words.length / sentences.length : 0
+    
+    // Content density (information per character)
+    const contentDensity = this.calculateContentDensity(allText)
+    
+    // Structure complexity
+    const headingLevels = [...new Set(document.sections
+      .filter(s => s.level)
+      .map(s => s.level)
+    )]
+    
+    return {
+      word_count: words.length,
+      sentence_count: sentences.length,
+      paragraph_count: document.sections.length,
+      vocabulary_richness: vocabularyRichness,
+      avg_sentence_length: avgSentenceLength,
+      avg_word_length: words.length > 0 ? allText.length / words.length : 0,
+      content_density: contentDensity,
+      structure_complexity: headingLevels.length,
+      heading_depth: Math.max(...headingLevels, 0),
+      readability_level: this.assessReadabilityLevel(avgSentenceLength, vocabularyRichness),
+      technical_complexity: this.assessTechnicalComplexity(allText)
+    }
+  }
+
+  /**
+   * Calculate readability score using Flesch-Kincaid inspired metrics
+   */
+  private static calculateReadabilityScore(text: string): number {
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0)
+    const words = text.split(/\s+/).filter(w => w.length > 0)
+    
+    if (sentences.length === 0 || words.length === 0) return 0
+    
+    const avgSentenceLength = words.length / sentences.length
+    const avgSyllablesPerWord = words.reduce((sum, word) => 
+      sum + this.countSyllables(word), 0) / words.length
+    
+    // Simplified Flesch score (0-100, higher = easier to read)
+    const fleschScore = 206.835 - (1.015 * avgSentenceLength) - (84.6 * avgSyllablesPerWord)
+    return Math.max(0, Math.min(100, fleschScore))
+  }
+
+  /**
+   * Calculate content density (information per character)
+   */
+  private static calculateContentDensity(text: string): number {
+    if (!text || text.length === 0) return 0
+    
+    // Remove common words and measure meaningful content
+    const meaningfulWords = text.split(/\s+/)
+      .filter(word => word.length > 3)
+      .filter(word => !this.isStopWord(word.toLowerCase()))
+    
+    return meaningfulWords.length / text.length
+  }
+
+  /**
+   * Advanced keyword extraction with TF-IDF-like scoring
+   */
+  private static extractAdvancedKeywords(document: NormalizedDocument): {
+    topKeywords: string[]
+    keywordScores: Record<string, number>
+  } {
+    const text = document.sections.map(s => s.text).join(' ').toLowerCase()
+    const words = text.split(/\s+/)
+      .filter(word => word.length > 3)
+      .filter(word => !this.isStopWord(word))
+    
+    // Calculate TF-IDF inspired scores
+    const wordFrequency: Record<string, number> = {}
+    const totalWords = words.length
+    
+    words.forEach(word => {
+      wordFrequency[word] = (wordFrequency[word] || 0) + 1
+    })
+    
+    // Apply TF-IDF-like scoring (frequency * importance factor)
+    const keywordScores: Record<string, number> = {}
+    Object.entries(wordFrequency).forEach(([word, freq]) => {
+      const tf = freq / totalWords
+      const importanceFactor = this.calculateWordImportance(word)
+      keywordScores[word] = tf * importanceFactor * 100
+    })
+    
+    // Sort by score and return top keywords
+    const sortedKeywords = Object.entries(keywordScores)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 15)
+      .map(([word]) => word)
+    
+    return {
+      topKeywords: sortedKeywords,
+      keywordScores
+    }
+  }
+
+  /**
+   * Calculate word importance based on various factors
+   */
+  private static calculateWordImportance(word: string): number {
+    let importance = 1.0
+    
+    // Capitalized words might be important
+    if (word[0] === word[0].toUpperCase()) importance *= 1.5
+    
+    // Longer words might be more specific
+    importance *= Math.min(2.0, word.length / 5)
+    
+    // Technical indicators
+    if (/\d/.test(word)) importance *= 1.2 // Contains numbers
+    if (/[A-Z]{2,}/.test(word)) importance *= 1.3 // Acronym
+    
+    return importance
+  }
+
+  /**
+   * Generate advanced tags including semantic and structural tags
+   */
+  private static generateAdvancedTags(document: NormalizedDocument): string[] {
+    const tags: string[] = []
+    const text = document.sections.map(s => s.text).join(' ').toLowerCase()
+    
+    // Content type tags
+    tags.push(document.contentType.split('/')[1] || 'text')
+    
+    // Language tags
+    if (document.metadata.detected_language) {
+      tags.push(document.metadata.detected_language as string)
+    }
+    
+    // Size-based tags
+    if (document.size > 1000000) tags.push('large')
+    else if (document.size > 10000) tags.push('medium')
+    else tags.push('small')
+    
+    // Structure tags
+    if (document.sections.some(s => s.metadata.type === 'heading')) {
+      tags.push('structured')
+    }
+    
+    // Content characteristics tags
+    if (text.includes('step') || text.includes('tutorial') || text.includes('guide')) {
+      tags.push('instructional')
+    }
+    
+    if (text.includes('example') || text.includes('demo')) {
+      tags.push('example')
+    }
+    
+    if (/\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4}/.test(text)) {
+      tags.push('time-sensitive')
+    }
+    
+    if (/\$\d+|\d+\s*dollars?|€\d+|\d+\s*euros?/.test(text)) {
+      tags.push('financial')
+    }
+    
+    // Technical content tags
+    if (/\b(function|class|const|let|var|import|export|def|return)\b/.test(text)) {
+      tags.push('code')
+    }
+    
+    if (/\b(http|https|www\.|\.com|\.org|\.io)\b/.test(text)) {
+      tags.push('web')
+    }
+    
+    // Document quality tags
+    const avgReadability = document.sections.reduce((sum, s) => {
+      const score = s.metadata.readability_score as number
+      return sum + (score || 0)
+    }, 0) / document.sections.length
+    
+    if (avgReadability > 70) tags.push('easy-to-read')
+    else if (avgReadability < 40) tags.push('complex')
+    
+    return [...new Set(tags)] // Remove duplicates
+  }
+
+  /**
+   * Extract semantic metadata using pattern matching
+   */
+  private static extractSemanticMetadata(document: NormalizedDocument): {
+    categories: string[]
+    entities: string[]
+    topics: string[]
+  } {
+    const text = document.sections.map(s => s.text).join(' ')
+    
+    // Simple pattern-based entity extraction
+    const entities: string[] = []
+    
+    // Email addresses
+    const emails = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g) || []
+    entities.push(...emails.map(e => `email:${e}`))
+    
+    // URLs
+    const urls = text.match(/\bhttps?:\/\/[^\s<>"]+/g) || []
+    entities.push(...urls.map(u => `url:${u}`))
+    
+    // Dates
+    const dates = text.match(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b|\b\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}\b/g) || []
+    entities.push(...dates.map(d => `date:${d}`))
+    
+    // Simple categorization based on content
+    const categories = this.categorizeContent(text)
+    
+    // Topic modeling (simplified)
+    const topics = this.extractTopics(text)
+    
+    return {
+      categories,
+      entities: [...new Set(entities)],
+      topics
+    }
+  }
+
+  /**
+   * Categorize content based on patterns and keywords
+   */
+  private static categorizeContent(text: string): string[] {
+    const categories: string[] = []
+    const lowerText = text.toLowerCase()
+    
+    // Technical documentation
+    if (/\b(api|endpoint|request|response|json|xml|http|rest)\b/.test(lowerText)) {
+      categories.push('technical-docs')
+    }
+    
+    // Educational content
+    if (/\b(learn|study|course|lesson|tutorial|education)\b/.test(lowerText)) {
+      categories.push('educational')
+    }
+    
+    // Business content
+    if (/\b(business|company|revenue|profit|market|customer)\b/.test(lowerText)) {
+      categories.push('business')
+    }
+    
+    // Legal content
+    if (/\b(legal|law|contract|agreement|terms|conditions)\b/.test(lowerText)) {
+      categories.push('legal')
+    }
+    
+    // Medical/Health
+    if (/\b(medical|health|patient|treatment|diagnosis|medicine)\b/.test(lowerText)) {
+      categories.push('medical')
+    }
+    
+    return categories
+  }
+
+  /**
+   * Extract topics using simplified keyword clustering
+   */
+  private static extractTopics(text: string): string[] {
+    const topicKeywords = {
+      'technology': ['computer', 'software', 'programming', 'code', 'algorithm', 'data'],
+      'business': ['market', 'revenue', 'customer', 'strategy', 'management', 'finance'],
+      'science': ['research', 'experiment', 'study', 'analysis', 'hypothesis', 'theory'],
+      'education': ['learning', 'teaching', 'student', 'course', 'knowledge', 'skill'],
+      'health': ['medical', 'health', 'treatment', 'patient', 'diagnosis', 'therapy']
+    }
+    
+    const topics: string[] = []
+    const lowerText = text.toLowerCase()
+    
+    Object.entries(topicKeywords).forEach(([topic, keywords]) => {
+      const matches = keywords.filter(keyword => lowerText.includes(keyword)).length
+      if (matches >= 2) { // At least 2 keywords to qualify
+        topics.push(topic)
+      }
+    })
+    
+    return topics
+  }
+
+  /**
+   * Generate content summary
+   */
+  private static generateContentSummary(document: NormalizedDocument): string {
+    const text = document.sections.map(s => s.text).join(' ')
+    
+    // Extract first and last sentences as a simple summary
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20)
+    
+    if (sentences.length <= 2) {
+      return text.slice(0, 200) + (text.length > 200 ? '...' : '')
+    }
+    
+    return `${sentences[0].trim()}. ... ${sentences[sentences.length - 1].trim()}.`
+  }
+
+  /**
+   * Assess potential for answering questions
+   */
+  private static assessQuestionPotential(document: NormalizedDocument): {
+    qa_potential: number
+    question_types: string[]
+  } {
+    const text = document.sections.map(s => s.text).join(' ').toLowerCase()
+    
+    const questionIndicators = {
+      'what': /\b(what|define|describe|explain)\b/g,
+      'how': /\b(how|process|method|procedure|steps)\b/g,
+      'why': /\b(why|reason|cause|purpose|because)\b/g,
+      'when': /\b(when|time|date|period|schedule)\b/g,
+      'where': /\b(where|location|place|position|address)\b/g,
+      'who': /\b(who|person|people|author|creator)\b/g
+    }
+    
+    const questionTypes: string[] = []
+    let totalMatches = 0
+    
+    Object.entries(questionIndicators).forEach(([type, regex]) => {
+      const matches = (text.match(regex) || []).length
+      if (matches > 0) {
+        questionTypes.push(type)
+        totalMatches += matches
+      }
+    })
+    
+    // Calculate QA potential (0-1 scale)
+    const qaPotential = Math.min(1.0, totalMatches / (text.length / 1000))
+    
+    return {
+      qa_potential: qaPotential,
+      question_types: questionTypes
+    }
+  }
+
+  /**
+   * Helper methods
+   */
+  private static countSyllables(word: string): number {
+    word = word.toLowerCase()
+    const vowels = 'aeiouy'
+    let count = 0
+    let prevWasVowel = false
+    
+    for (const char of word) {
+      const isVowel = vowels.includes(char)
+      if (isVowel && !prevWasVowel) {
+        count++
+      }
+      prevWasVowel = isVowel
+    }
+    
+    return Math.max(1, count)
+  }
+
+  private static assessReadabilityLevel(avgSentenceLength: number, vocabularyRichness: number): string {
+    if (avgSentenceLength < 15 && vocabularyRichness > 0.5) return 'easy'
+    if (avgSentenceLength < 20 && vocabularyRichness > 0.4) return 'moderate'
+    if (avgSentenceLength < 25 && vocabularyRichness > 0.3) return 'difficult'
+    return 'very_difficult'
+  }
+
+  private static assessTechnicalComplexity(text: string): number {
+    const technicalIndicators = [
+      /\b(function|class|algorithm|method|parameter)\b/g,
+      /\b(api|endpoint|request|response)\b/g,
+      /\b(database|query|index|schema)\b/g,
+      /\b(protocol|network|socket|port)\b/g
+    ]
+    
+    const matches = technicalIndicators.reduce((sum, regex) => 
+      sum + (text.match(regex) || []).length, 0
+    )
+    
+    return Math.min(1.0, matches / (text.length / 500))
   }
 
   /**

@@ -10,9 +10,11 @@ import { MarkdownParser } from './markdown-parser'
 import { CodeParser } from './code-parser'
 import { TextParser } from './text-parser'
 import { CsvParser } from './csv-parser'
+import { PdfParser } from './pdf-parser'
+import { DocxParser } from './docx-parser'
 
 export interface Parser {
-  parse(content: string, language?: string): Promise<ParsedDocument>
+  parse(content: string | Buffer | ArrayBuffer, language?: string): Promise<ParsedDocument>
 }
 
 export class ParserRegistry {
@@ -25,6 +27,8 @@ export class ParserRegistry {
     this.register('text/csv', new CsvParser())
     this.register('application/json', new JsonParser())
     this.register('text/html', new HtmlParser())
+    this.register('application/pdf', new PdfParser())
+    this.register('application/vnd.openxmlformats-officedocument.wordprocessingml.document', new DocxParser())
     
     // Register code parsers
     const codeTypes = [
@@ -375,68 +379,4 @@ class HtmlParser implements Parser {
   }
 }
 
-/**
- * PDF Parser (placeholder - would use PDF library in production)
- */
-class PdfParser implements Parser {
-  async parse(content: string): Promise<ParsedDocument> {
-    // This is a placeholder implementation
-    // In production, this would use a PDF parsing library like pdf-parse
-    
-    return {
-      content: content,
-      metadata: {
-        type: 'pdf',
-        note: 'PDF parsing not fully implemented - requires PDF parsing library',
-        content_length: content.length
-      },
-      sections: [{
-        path: ['content'],
-        text: content,
-        metadata: {
-          type: 'content',
-          length: content.length
-        }
-      }],
-      structure: {
-        type: 'flat',
-        elements: []
-      }
-    }
-  }
-}
-
-/**
- * DOCX Parser (placeholder - would use DOCX library in production)
- */
-class DocxParser implements Parser {
-  async parse(content: string): Promise<ParsedDocument> {
-    // This is a placeholder implementation
-    // In production, this would use a DOCX parsing library like docx-parser
-    
-    return {
-      content: content,
-      metadata: {
-        type: 'docx',
-        note: 'DOCX parsing not fully implemented - requires DOCX parsing library',
-        content_length: content.length
-      },
-      sections: [{
-        path: ['content'],
-        text: content,
-        metadata: {
-          type: 'content',
-          length: content.length
-        }
-      }],
-      structure: {
-        type: 'flat',
-        elements: []
-      }
-    }
-  }
-}
-
-// Register additional parsers
-ParserRegistry.register('application/pdf', new PdfParser())
-ParserRegistry.register('application/vnd.openxmlformats-officedocument.wordprocessingml.document', new DocxParser())
+// PDF and DOCX parsers are now imported as separate classes

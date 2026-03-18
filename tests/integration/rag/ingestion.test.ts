@@ -359,7 +359,7 @@ class TestClass {
       // Create test files
       const testFiles = [
         new File(['# Test Markdown\n\nThis is a test markdown document.'], 'test.md', { type: 'text/markdown' }),
-        new File(['{"title": "Test JSON", "content": "Test content"}], 'test.json', { type: 'application/json' })
+        new File(['{"title": "Test JSON", "content": "Test content"}'], 'test.json', { type: 'application/json' })
       ]
 
       const uploadInput: UploadFilesActionInput = {
